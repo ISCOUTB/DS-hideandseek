@@ -1,4 +1,4 @@
-# hide_n_seek
+# DS-hideandseek
 
 A new Flutter project.
 
