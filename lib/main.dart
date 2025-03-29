@@ -144,7 +144,11 @@ class _CloudBackgroundState extends State<CloudBackground>
               return Positioned(
                 left: cloud.left,
                 top: cloud.top,
-                child: Image.asset("assets/cloud.png", width: 120, height: 80),
+                child: Image.asset(
+                  "assets/imagen/cloud.png",
+                  width: 120,
+                  height: 80,
+                ),
               );
             }).toList(),
       ),
@@ -249,6 +253,10 @@ class OptionsScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
       ),
     );
   }
