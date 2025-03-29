@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flame/game.dart';
-import 'game/hide_n_seek.dart';
+import 'dart:async';
+import 'dart:math';
 
 void main() {
   runApp(const MyApp());
@@ -9,72 +9,247 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Hide N Seek',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      debugShowCheckedModeBanner: false,
+      home: const MainMenu(), // Pantalla principal
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+// 📌 Widget del menú principal
+class MainMenu extends StatelessWidget {
+  const MainMenu({super.key});
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+      body: Stack(
+        children: [
+          const CloudBackground(), // Fondo animado con nubes
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Hide and Seek",
+                  style: TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                MenuButton(
+                  "Jugar",
+                  onPressed: () {
+                    // Acción cuando el botón "Jugar" es presionado
+                  },
+                ),
+                MenuButton(
+                  "Opciones",
+                  onPressed: () {
+                    // Navegar al menú de opciones cuando se presiona el botón
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const OptionsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                MenuButton(
+                  "Salir",
+                  onPressed: () {
+                    // Acción para salir o cerrar el juego
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
-      body: GameWidget(game: HideNseek()),
+    );
+  }
+}
+
+// 📌 Widget para el fondo con nubes animadas
+class CloudBackground extends StatefulWidget {
+  const CloudBackground({super.key});
+
+  @override
+  _CloudBackgroundState createState() => _CloudBackgroundState();
+}
+
+class _CloudBackgroundState extends State<CloudBackground>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  List<Cloud> clouds = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 10),
+      vsync: this,
+    )..repeat();
+
+    // Iniciar las nubes cuando el frame está construido
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _generateClouds();
+    });
+
+    // Redibujar cada vez que el controlador cambia
+    _controller.addListener(() {
+      setState(() {
+        for (var cloud in clouds) {
+          cloud.left += cloud.speed;
+          if (cloud.left > MediaQuery.of(context).size.width) {
+            cloud.left = -100; // Reiniciar la nube cuando salga de pantalla
+          }
+        }
+      });
+    });
+  }
+
+  void _generateClouds() {
+    double screenWidth = MediaQuery.of(context).size.width;
+    double screenHeight = MediaQuery.of(context).size.height;
+
+    setState(() {
+      clouds = List.generate(8, (index) {
+        return Cloud(
+          left: Random().nextDouble() * screenWidth,
+          top: Random().nextDouble() * screenHeight,
+          speed: Random().nextDouble() * 2 + 1, // Velocidad entre 1 y 3
+        );
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color.fromARGB(255, 100, 202, 246), // Color azul cielo
+      child: Stack(
+        children:
+            clouds.map((cloud) {
+              return Positioned(
+                left: cloud.left,
+                top: cloud.top,
+                child: Image.asset("assets/cloud.png", width: 120, height: 80),
+              );
+            }).toList(),
+      ),
+    );
+  }
+}
+
+// 📌 Clase para manejar las nubes
+class Cloud {
+  double left;
+  double top;
+  double speed;
+
+  Cloud({required this.left, required this.top, required this.speed});
+}
+
+// 📌 Widget para los botones del menú con sombra y animaciones
+class MenuButton extends StatelessWidget {
+  final String text;
+  final VoidCallback onPressed;
+
+  const MenuButton(this.text, {required this.onPressed, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(3, 3),
+            ),
+          ],
+        ),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          onPressed: onPressed,
+          child: Text(text),
+        ),
+      ),
+    );
+  }
+}
+
+// 📌 Nueva pantalla de opciones (igual que el menú principal pero con diferentes opciones)
+class OptionsScreen extends StatelessWidget {
+  const OptionsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          const CloudBackground(), // Fondo animado con nubes
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Opciones",
+                  style: TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                MenuButton(
+                  "Volumen",
+                  onPressed: () {
+                    // Acción para cambiar volumen
+                  },
+                ),
+                MenuButton(
+                  "Idioma",
+                  onPressed: () {
+                    // Acción para cambiar idioma
+                  },
+                ),
+                MenuButton(
+                  "Controles",
+                  onPressed: () {
+                    // Acción para cambiar controles
+                  },
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  "Versión: 1.0.0",
+                  style: TextStyle(fontSize: 16, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
