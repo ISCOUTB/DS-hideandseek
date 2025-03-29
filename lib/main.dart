@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'dart:math';
 
 void main() {
@@ -253,10 +252,6 @@ class OptionsScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
       ),
     );
   }
