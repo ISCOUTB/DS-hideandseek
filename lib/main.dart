@@ -12,12 +12,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: const MainMenu(), // Pantalla principal
+      home: const MainMenu(),
     );
   }
 }
 
-// 📌 Widget del menú principal
 class MainMenu extends StatelessWidget {
   const MainMenu({super.key});
 
@@ -26,7 +25,7 @@ class MainMenu extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          const CloudBackground(), // Fondo animado con nubes
+          const CloudBackground(),
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -41,27 +40,20 @@ class MainMenu extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 MenuButton(
-                  "Jugar",
+                  "Iniciar",
                   onPressed: () {
-                    // Acción cuando el botón "Jugar" es presionado
+                    Navigator.of(context).push(_createRoute());
                   },
                 ),
                 MenuButton(
                   "Opciones",
                   onPressed: () {
-                    // Navegar al menú de opciones cuando se presiona el botón
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => const OptionsScreen(),
                       ),
                     );
-                  },
-                ),
-                MenuButton(
-                  "Salir",
-                  onPressed: () {
-                    // Acción para salir o cerrar el juego
                   },
                 ),
               ],
@@ -73,7 +65,62 @@ class MainMenu extends StatelessWidget {
   }
 }
 
-// 📌 Widget para el fondo con nubes animadas
+// ---------------- Pantalla de Simulación ---------------- //
+class SimulationScreen extends StatelessWidget {
+  const SimulationScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          const CloudBackground(),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Simulación en Desarrollo",
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                MenuButton(
+                  "Atrás",
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------- Animación de Transición ---------------- //
+PageRouteBuilder _createRoute() {
+  return PageRouteBuilder(
+    pageBuilder:
+        (context, animation, secondaryAnimation) => const SimulationScreen(),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      const begin = Offset(1.0, 0.0); // Desliza desde la derecha
+      const end = Offset.zero;
+      const curve = Curves.easeInOut;
+
+      var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+
+      return SlideTransition(position: animation.drive(tween), child: child);
+    },
+  );
+}
+
+// ---------------- Fondo con Nubes ---------------- //
 class CloudBackground extends StatefulWidget {
   const CloudBackground({super.key});
 
@@ -94,21 +141,8 @@ class _CloudBackgroundState extends State<CloudBackground>
       vsync: this,
     )..repeat();
 
-    // Iniciar las nubes cuando el frame está construido
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _generateClouds();
-    });
-
-    // Redibujar cada vez que el controlador cambia
-    _controller.addListener(() {
-      setState(() {
-        for (var cloud in clouds) {
-          cloud.left += cloud.speed;
-          if (cloud.left > MediaQuery.of(context).size.width) {
-            cloud.left = -100; // Reiniciar la nube cuando salga de pantalla
-          }
-        }
-      });
     });
   }
 
@@ -121,10 +155,42 @@ class _CloudBackgroundState extends State<CloudBackground>
         return Cloud(
           left: Random().nextDouble() * screenWidth,
           top: Random().nextDouble() * screenHeight,
-          speed: Random().nextDouble() * 2 + 1, // Velocidad entre 1 y 3
+          speed: Random().nextDouble() * 2 + 1,
         );
       });
     });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        for (var cloud in clouds) {
+          cloud.left += cloud.speed;
+          if (cloud.left > MediaQuery.of(context).size.width) {
+            cloud.left = -100;
+          }
+        }
+        return Container(
+          color: const Color.fromARGB(255, 100, 202, 246),
+          child: Stack(
+            children:
+                clouds.map((cloud) {
+                  return Positioned(
+                    left: cloud.left,
+                    top: cloud.top,
+                    child: Image.asset(
+                      "assets/imagen/cloud.png",
+                      width: 120,
+                      height: 80,
+                    ),
+                  );
+                }).toList(),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -132,30 +198,8 @@ class _CloudBackgroundState extends State<CloudBackground>
     _controller.dispose();
     super.dispose();
   }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color.fromARGB(255, 100, 202, 246), // Color azul cielo
-      child: Stack(
-        children:
-            clouds.map((cloud) {
-              return Positioned(
-                left: cloud.left,
-                top: cloud.top,
-                child: Image.asset(
-                  "assets/imagen/cloud.png",
-                  width: 120,
-                  height: 80,
-                ),
-              );
-            }).toList(),
-      ),
-    );
-  }
 }
 
-// 📌 Clase para manejar las nubes
 class Cloud {
   double left;
   double top;
@@ -164,7 +208,7 @@ class Cloud {
   Cloud({required this.left, required this.top, required this.speed});
 }
 
-// 📌 Widget para los botones del menú con sombra y animaciones
+// ---------------- Botones del Menú ---------------- //
 class MenuButton extends StatelessWidget {
   final String text;
   final VoidCallback onPressed;
@@ -174,17 +218,11 @@ class MenuButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(3, 3),
-            ),
-          ],
-        ),
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Material(
+        elevation: 5,
+        borderRadius: BorderRadius.circular(10),
+        color: Colors.transparent,
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.red,
@@ -195,14 +233,14 @@ class MenuButton extends StatelessWidget {
             ),
           ),
           onPressed: onPressed,
-          child: Text(text),
+          child: Text(text, style: const TextStyle(fontSize: 18)),
         ),
       ),
     );
   }
 }
 
-// 📌 Nueva pantalla de opciones (igual que el menú principal pero con diferentes opciones)
+// ---------------- Pantalla de Opciones ---------------- //
 class OptionsScreen extends StatelessWidget {
   const OptionsScreen({super.key});
 
@@ -211,7 +249,7 @@ class OptionsScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          const CloudBackground(), // Fondo animado con nubes
+          const CloudBackground(),
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -224,23 +262,13 @@ class OptionsScreen extends StatelessWidget {
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 15),
+                MenuButton("Volumen", onPressed: () {}),
+                MenuButton("Idioma", onPressed: () {}),
                 MenuButton(
-                  "Volumen",
+                  "Atrás",
                   onPressed: () {
-                    // Acción para cambiar volumen
-                  },
-                ),
-                MenuButton(
-                  "Idioma",
-                  onPressed: () {
-                    // Acción para cambiar idioma
-                  },
-                ),
-                MenuButton(
-                  "Controles",
-                  onPressed: () {
-                    // Acción para cambiar controles
+                    Navigator.pop(context);
                   },
                 ),
                 const SizedBox(height: 20),
