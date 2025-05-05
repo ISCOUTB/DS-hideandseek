@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="hide_n_seek"
+        android:label="hiden_and_seek_v2"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
