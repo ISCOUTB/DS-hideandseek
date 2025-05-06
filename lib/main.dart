@@ -1,8 +1,7 @@
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
+import 'package:flame/sprite.dart';
 
 void main() {
   runApp(const MainApp());
@@ -13,125 +12,102 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => MyAppState(),
-      child: MaterialApp(
-        title: 'Hiden And Seek',
-        theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color.fromARGB(255, 59, 87, 211),
-          ),
+    return MaterialApp(
+      title: 'Hide And Seek',
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color.fromARGB(255, 59, 87, 211),
         ),
-        home: const MyHomePage(),
       ),
+      home: const PaginaSimulacion(), // Cambiar a PaginaSimulacion
     );
   }
 }
 
 class MyAppState extends ChangeNotifier {}
 
-class MyHomePage extends StatelessWidget {
-  const MyHomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 2, 2, 2),
-      body: Center(
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Color.fromARGB(255, 59, 87, 211),
-                Color.fromARGB(255, 2, 2, 2),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          padding: const EdgeInsets.all(50),
-          width: 300,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                "Hiden And Seek",
-                style: GoogleFonts.pressStart2p(
-                  fontSize: 20,
-                  color: Colors.white,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              BotonInicio(
-                texto: "Iniciar",
-                accion: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PaginaSimulacion(),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-              BotonInicio(texto: "Opciones", accion: () {}),
-              const SizedBox(height: 10),
-              BotonInicio(texto: "Acerca de", accion: () {}),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class BotonInicio extends StatelessWidget {
-  const BotonInicio({super.key, required this.texto, required this.accion});
-
-  final VoidCallback accion;
-  final String texto;
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-      ),
-      onPressed: accion,
-      child: Text(texto, style: const TextStyle(color: Colors.black)),
-    );
-  }
-}
-
 class PaginaSimulacion extends StatelessWidget {
   const PaginaSimulacion({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Hiden And Seek')),
-      body: Expanded(child: GameWidget(game: FlameGame(world: MiMundo()))),
+    return Scaffold(body: GameWidget(game: MiMundo()));
+  }
+}
+
+class MiMundo extends FlameGame with HasCollisionDetection {
+  @override
+  Future<void> onLoad() async {
+    //mapa
+    add(TileMap());
+
+    //personajes
+    add(Hider(position: Vector2(100, 100)));
+    add(Seeker(position: Vector2(300, 100)));
+  }
+}
+
+class TileMap extends Component with HasGameRef {
+  @override
+  Future<void> onLoad() async {
+    // Cargar la imagen del mapa
+    final mapImage = await gameRef.images.load('maps/room1.png');
+
+    // Tamaño de cada tile (ajusta según tu diseño)
+    const tileSize = 64.0;
+
+    // Dividir la imagen en tiles
+    final spriteSheet = SpriteSheet.fromColumnsAndRows(
+      image: mapImage,
+      columns: (mapImage.width / tileSize).floor(),
+      rows: (mapImage.height / tileSize).floor(),
     );
+
+    // Crear los tiles y agregarlos al juego
+    for (int row = 0; row < spriteSheet.rows; row++) {
+      for (int col = 0; col < spriteSheet.columns; col++) {
+        final tileSprite = spriteSheet.getSprite(row, col);
+        add(
+          SpriteComponent(
+            sprite: tileSprite,
+            size: Vector2.all(tileSize),
+            position: Vector2(col * tileSize, row * tileSize),
+          ),
+        );
+      }
+    }
   }
 }
 
-class MiMundo extends World {
+class Hider extends SpriteAnimationComponent with HasGameRef {
+  Hider({required Vector2 position})
+    : super(position: position, size: Vector2.all(64), anchor: Anchor.center);
+
   @override
   Future<void> onLoad() async {
-    add(Player(position: Vector2(0, 0)));
+    final image = await gameRef.images.load('characters/hider.png');
+    final spriteSheet = SpriteSheet.fromColumnsAndRows(
+      image: image,
+      columns: 4, // Number of columns in the sprite sheet
+      rows: 3, // Number of rows in the sprite sheet
+    );
+    animation = spriteSheet.createAnimation(row: 0, stepTime: 0.1);
   }
 }
 
-class Player extends SpriteComponent {
-  Player({super.position})
-    : super(size: Vector2.all(200), anchor: Anchor.center);
+class Seeker extends SpriteAnimationComponent with HasGameRef {
+  Seeker({required Vector2 position})
+    : super(position: position, size: Vector2.all(64), anchor: Anchor.center);
 
   @override
   Future<void> onLoad() async {
-    sprite = await Sprite.load('player.png');
+    final image = await gameRef.images.load('characters/seeker.png');
+    final spriteSheet = SpriteSheet.fromColumnsAndRows(
+      image: image,
+      columns: 4, // Número de columnas en el spritesheet
+      rows: 3, // Número de filas en el spritesheet
+    );
+    animation = spriteSheet.createAnimation(row: 0, stepTime: 0.1);
   }
 }

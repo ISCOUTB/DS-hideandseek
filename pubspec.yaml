@@ -1,4 +1,4 @@
-name: hiden_and_seek_v2
+name: hide_and_seek_v2
 description: "A new Flutter project."
 publish_to: 'none'
 version: 0.1.0
@@ -21,3 +21,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/characters/hider.png
+    - assets/characters/seeker.png
+    - assets/maps/room1.png
+    - assets/maps/room2.png
