@@ -1,11 +1,14 @@
+import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
-import 'package:flutter/material.dart';
 import 'package:flame/sprite.dart';
 import 'package:flame/flame.dart' as f;
 import 'package:flame/input.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/services.dart'; // para LogicalKeyboardKey
 
+// =============================================================================
+// main() y App scaffold
+// =============================================================================
 void main() {
   f.Flame.images.prefix = '';
   runApp(const MainApp());
@@ -24,13 +27,143 @@ class MainApp extends StatelessWidget {
           seedColor: const Color.fromARGB(255, 59, 87, 211),
         ),
       ),
-      home: const PaginaSimulacion(), // Cambiar a PaginaSimulacion
+      home: const MainMenu(), // Aquí abrimos el menú principal
+      debugShowCheckedModeBanner: false,
     );
   }
 }
 
-class MyAppState extends ChangeNotifier {}
+// =============================================================================
+// 1) MainMenu: pantalla inicial con opciones
+// =============================================================================
+class MainMenu extends StatelessWidget {
+  const MainMenu({super.key});
 
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        color: const Color(0xFF64CAF6),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.all(30),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.8),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Hide and Seek",
+                  style: TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _MenuButton(
+                  "Iniciar",
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const PaginaSimulacion(),
+                      ),
+                    );
+                  },
+                ),
+                _MenuButton(
+                  "Opciones",
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const OptionsScreen()),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MenuButton extends StatelessWidget {
+  final String text;
+  final VoidCallback onPressed;
+  const _MenuButton(this.text, {required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.red,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 36),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        onPressed: onPressed,
+        child: Text(text, style: const TextStyle(fontSize: 18)),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// 2) OptionsScreen: la pantalla de Opciones (vacía por ahora)
+// =============================================================================
+class OptionsScreen extends StatelessWidget {
+  const OptionsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Opciones")),
+      body: Container(
+        color: const Color(0xFF64CAF6),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.all(30),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.8),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Opciones",
+                  style: TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _MenuButton("Volumen", onPressed: () {}),
+                _MenuButton("Idioma", onPressed: () {}),
+                _MenuButton("Atrás", onPressed: () => Navigator.pop(context)),
+                const SizedBox(height: 12),
+                const Text(
+                  "Versión: 1.0.0",
+                  style: TextStyle(color: Colors.white70),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// 3) PaginaSimulacion: donde cargamos tu juego en Flame
+// =============================================================================
 class PaginaSimulacion extends StatelessWidget {
   const PaginaSimulacion({super.key});
 
@@ -46,50 +179,20 @@ class PaginaSimulacion extends StatelessWidget {
   }
 }
 
-class GridOverlay extends Component with HasGameRef<FlameGame> {
-  final double tileSize;
-  final Paint linePaint;
-
-  GridOverlay({required this.tileSize})
-    : linePaint =
-          Paint()
-            ..color = const Color(0xFF000000) // línea semitransparente blanca
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1;
-
-  @override
-  void render(Canvas canvas) {
-    final size = gameRef.size;
-    // líneas verticales
-    for (double x = 0; x <= size.x; x += tileSize) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.y), linePaint);
-    }
-    // líneas horizontales
-    for (double y = 0; y <= size.y; y += tileSize) {
-      canvas.drawLine(Offset(0, y), Offset(size.x, y), linePaint);
-    }
-  }
-}
-
+// =============================================================================
+// 4) Tu código del juego: MiMundo, TileMap, Hider y Seeker (sin cambios)
+// =============================================================================
 class MiMundo extends FlameGame
     with HasCollisionDetection, HasKeyboardHandlerComponents {
   static const tileSize = 64.0;
 
   @override
   Future<void> onLoad() async {
-    //mapa
     add(TileMap());
 
-    // Posiciones de inicio (fila, columna)
-    const hiderRow = 3;
-    const hiderCol = 2;
-    const seekerRow = 8;
-    const seekerCol = 12;
+    const hiderRow = 3, hiderCol = 2;
+    const seekerRow = 8, seekerCol = 12;
 
-    // cuadrícula
-    //add(GridOverlay(tileSize: tileSize));
-
-    //personajes
     add(
       Hider(
         position: Vector2(
@@ -98,7 +201,6 @@ class MiMundo extends FlameGame
         ),
       ),
     );
-
     add(
       Seeker(
         position: Vector2(
@@ -110,31 +212,23 @@ class MiMundo extends FlameGame
   }
 }
 
-class TileMap extends Component with HasGameRef {
+class TileMap extends Component with HasGameRef<FlameGame> {
   @override
   Future<void> onLoad() async {
-    // Cargar la imagen del mapa
     final mapImage = await gameRef.images.load('maps/room1.png');
-
-    // Tamaño de cada tile (ajusta según tu diseño)
     const tileSize = 64.0;
-
-    // Dividir la imagen en tiles
-    final spriteSheet = SpriteSheet.fromColumnsAndRows(
+    final sheet = SpriteSheet.fromColumnsAndRows(
       image: mapImage,
       columns: (mapImage.width / tileSize).floor(),
       rows: (mapImage.height / tileSize).floor(),
     );
-
-    // Crear los tiles y agregarlos al juego
-    for (int row = 0; row < spriteSheet.rows; row++) {
-      for (int col = 0; col < spriteSheet.columns; col++) {
-        final tileSprite = spriteSheet.getSprite(row, col);
+    for (int r = 0; r < sheet.rows; r++) {
+      for (int c = 0; c < sheet.columns; c++) {
         add(
           SpriteComponent(
-            sprite: tileSprite,
+            sprite: sheet.getSprite(r, c),
             size: Vector2.all(tileSize),
-            position: Vector2(col * tileSize, row * tileSize),
+            position: Vector2(c * tileSize, r * tileSize),
           ),
         );
       }
@@ -142,7 +236,8 @@ class TileMap extends Component with HasGameRef {
   }
 }
 
-class Hider extends SpriteAnimationComponent with HasGameRef, KeyboardHandler {
+class Hider extends SpriteAnimationComponent
+    with HasGameRef<FlameGame>, KeyboardHandler {
   Hider({required Vector2 position})
     : super(
         position: position,
@@ -150,92 +245,59 @@ class Hider extends SpriteAnimationComponent with HasGameRef, KeyboardHandler {
         anchor: Anchor.bottomCenter,
       );
 
-  late final SpriteAnimation _idleAnimation;
-  late final SpriteAnimation _moveUpAnimation;
-  late final SpriteAnimation _moveDownAnimation;
-  late final SpriteAnimation _moveLeftAnimation;
-  late final SpriteAnimation _moveRightAnimation;
-
-  final double speed = 100;
+  late final SpriteAnimation _idle, _up, _down, _left, _right;
+  final speed = 100.0;
+  Vector2 velocity = Vector2.zero();
 
   @override
   Future<void> onLoad() async {
-    final image = await gameRef.images.load('characters/hider.png');
-    final spriteSheet = SpriteSheet.fromColumnsAndRows(
-      image: image,
-      columns: 4, // Number of columns in the sprite sheet
-      rows: 3, // Number of rows in the sprite sheet
+    final img = await gameRef.images.load('characters/hider.png');
+    final sheet = SpriteSheet.fromColumnsAndRows(
+      image: img,
+      columns: 4,
+      rows: 3,
     );
 
-    // Animaciones
-    _idleAnimation = SpriteAnimation.spriteList(
-      [spriteSheet.getSprite(0, 0)], // solo el fotograma (fila 0, columna 0)
-      stepTime: double.infinity, // nunca avanza al siguiente fotograma
-    );
-    _moveDownAnimation = spriteSheet.createAnimation(
-      row: 0,
-      from: 1,
-      to: 2,
-      stepTime: 0.2,
-      loop: true,
-    );
-    _moveLeftAnimation = spriteSheet.createAnimation(
-      row: 0,
-      from: 1,
-      to: 2,
-      stepTime: 0.2,
-    );
-    _moveRightAnimation = spriteSheet.createAnimation(
-      row: 0,
-      from: 1,
-      to: 2,
-      stepTime: 0.2,
-    );
-    _moveUpAnimation = spriteSheet.createAnimation(
-      row: 0,
-      from: 1,
-      to: 2,
-      stepTime: 0.2,
-    );
+    _idle = SpriteAnimation.spriteList([
+      sheet.getSprite(0, 0),
+    ], stepTime: double.infinity);
+    _down = sheet.createAnimation(row: 0, from: 1, to: 2, stepTime: 0.2);
+    _left = sheet.createAnimation(row: 0, from: 1, to: 2, stepTime: 0.2);
+    _right = sheet.createAnimation(row: 0, from: 1, to: 2, stepTime: 0.2);
+    _up = sheet.createAnimation(row: 0, from: 1, to: 2, stepTime: 0.2);
 
-    animation = _idleAnimation;
+    animation = _idle;
   }
 
   @override
   void update(double dt) {
     super.update(dt);
-
-    // Movimiento continuo basado en la velocidad
-    if (velocity != Vector2.zero()) {
-      position.add(velocity * dt);
-    }
+    if (velocity != Vector2.zero()) position += velocity * dt;
   }
-
-  Vector2 velocity = Vector2.zero();
 
   @override
   bool onKeyEvent(KeyEvent event, Set<LogicalKeyboardKey> keysPressed) {
     velocity.setZero();
     if (keysPressed.contains(LogicalKeyboardKey.arrowUp)) {
       velocity.y = -speed;
-      animation = _moveUpAnimation;
+      animation = _up;
     } else if (keysPressed.contains(LogicalKeyboardKey.arrowDown)) {
       velocity.y = speed;
-      animation = _moveDownAnimation;
+      animation = _down;
     } else if (keysPressed.contains(LogicalKeyboardKey.arrowLeft)) {
       velocity.x = -speed;
-      animation = _moveLeftAnimation;
+      animation = _left;
     } else if (keysPressed.contains(LogicalKeyboardKey.arrowRight)) {
       velocity.x = speed;
-      animation = _moveRightAnimation;
+      animation = _right;
     } else {
-      animation = _idleAnimation;
+      animation = _idle;
     }
     return true;
   }
 }
 
-class Seeker extends SpriteAnimationComponent with HasGameRef {
+class Seeker extends SpriteAnimationComponent with HasGameRef<FlameGame> {
   Seeker({required Vector2 position})
     : super(
         position: position,
@@ -245,14 +307,14 @@ class Seeker extends SpriteAnimationComponent with HasGameRef {
 
   @override
   Future<void> onLoad() async {
-    final image = await gameRef.images.load('characters/seeker.png');
+    final img = await gameRef.images.load('characters/seeker.png');
     final sheet = SpriteSheet.fromColumnsAndRows(
-      image: image,
+      image: img,
       columns: 4,
       rows: 3,
     );
 
-    // Solo el fotograma (fila 0, columna 0), sin animar
+    // Un solo fotograma estático
     animation = SpriteAnimation.spriteList([
       sheet.getSprite(0, 0),
     ], stepTime: double.infinity);
