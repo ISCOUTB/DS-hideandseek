@@ -1,39 +1,29 @@
-name: SonarQube Flutter Analysis
-
+name: Build
 on:
   push:
     branches:
       - master
   pull_request:
     types: [opened, synchronize, reopened]
-
 jobs:
   sonarqube:
     name: SonarQube
     runs-on: windows-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Requerido por SonarQube
-
-      - name: Remove Flutter cache if exists
-        run: |
-          if (Test-Path "$env:USERPROFILE\.flutter") {
-            Remove-Item -Recurse -Force "$env:USERPROFILE\.flutter"
-          }
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.5'  # Dart >= 3.7.2 incluido
+          channel: stable
 
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Analyze the project
-        run: flutter analyze
+      - name: Build
+        run: flutter build web
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v5
