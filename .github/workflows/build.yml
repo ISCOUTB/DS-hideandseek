@@ -18,8 +18,11 @@ jobs:
         with:
           fetch-depth: 0  # Requerido por SonarQube
 
-      - name: Remove Flutter cache
-        run: Remove-Item -Recurse -Force "$env:USERPROFILE\.flutter"
+      - name: Remove Flutter cache if exists
+        run: |
+          if (Test-Path "$env:USERPROFILE\.flutter") {
+            Remove-Item -Recurse -Force "$env:USERPROFILE\.flutter"
+          }
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
