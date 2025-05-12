@@ -16,12 +16,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Necesario para que SonarQube vea el historial completo
+          fetch-depth: 0  # Requerido por SonarQube para obtener historial completo
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.10.0'  # O ajusta a la versión que uses
+          flutter-version: '3.19.5'  # ✅ Incluye Dart >= 3.7.2
 
       - name: Install dependencies
         run: flutter pub get
