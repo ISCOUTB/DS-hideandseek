@@ -16,12 +16,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Requerido por SonarQube para obtener historial completo
+          fetch-depth: 0  # Requerido por SonarQube
+
+      - name: Remove Flutter cache
+        run: rm -rf "$HOME/.flutter"  # ✅ Importante para evitar versiones viejas
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.5'  # ✅ Incluye Dart >= 3.7.2
+          flutter-version: '3.19.5'  # Dart >= 3.7.2 incluido
 
       - name: Install dependencies
         run: flutter pub get
