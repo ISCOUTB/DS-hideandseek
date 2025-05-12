@@ -1,21 +1,34 @@
-name: Build
+name: SonarQube Flutter Analysis
+
 on:
   push:
     branches:
       - master
   pull_request:
     types: [opened, synchronize, reopened]
+
 jobs:
   sonarqube:
     name: SonarQube
     runs-on: windows-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-      # The analysis requires to retrieve dependencies and build successfully
-      - name: Build
-        run: <mark><commands_to_build_your_project></mark>
+          fetch-depth: 0  # Necesario para que SonarQube vea el historial completo
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.10.0'  # O ajusta a la versión que uses
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze the project
+        run: flutter analyze
+
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v5
         env:
