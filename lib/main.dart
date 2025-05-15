@@ -1,16 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flame/components.dart';
-import 'package:flame/game.dart';
-import 'package:flame/sprite.dart';
-import 'package:flame/flame.dart' as f;
-import 'package:flame/input.dart';
 import 'package:flutter/services.dart'; // para LogicalKeyboardKey
 
 // =============================================================================
 // main() y App scaffold
 // =============================================================================
 void main() {
-  f.Flame.images.prefix = '';
   runApp(const MainApp());
 }
 
@@ -27,7 +21,7 @@ class MainApp extends StatelessWidget {
           seedColor: const Color.fromARGB(255, 59, 87, 211),
         ),
       ),
-      home: const MainMenu(), // Aquí abrimos el menú principal
+      home: const MainMenu(),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -67,20 +61,11 @@ class MainMenu extends StatelessWidget {
                   "Iniciar",
                   onPressed: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const PaginaSimulacion(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const MazeGameScreen()),
                     );
                   },
                 ),
-                _MenuButton(
-                  "Opciones",
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const OptionsScreen()),
-                    );
-                  },
-                ),
+                _MenuButton("Opciones", onPressed: () {}),
               ],
             ),
           ),
@@ -113,210 +98,893 @@ class _MenuButton extends StatelessWidget {
   }
 }
 
-// =============================================================================
-// 2) OptionsScreen: la pantalla de Opciones (vacía por ahora)
-// =============================================================================
-class OptionsScreen extends StatelessWidget {
-  const OptionsScreen({super.key});
+// =====================
+// Pantalla del laberinto
+// =====================
+class MazeGameScreen extends StatefulWidget {
+  const MazeGameScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Opciones")),
-      body: Container(
-        color: const Color(0xFF64CAF6),
-        child: Center(
-          child: Container(
-            padding: const EdgeInsets.all(30),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.8),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  "Opciones",
-                  style: TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _MenuButton("Volumen", onPressed: () {}),
-                _MenuButton("Idioma", onPressed: () {}),
-                _MenuButton("Atrás", onPressed: () => Navigator.pop(context)),
-                const SizedBox(height: 12),
-                const Text(
-                  "Versión: 1.0.0",
-                  style: TextStyle(color: Colors.white70),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  State<MazeGameScreen> createState() => _MazeGameScreenState();
 }
 
-// =============================================================================
-// 3) PaginaSimulacion: donde cargamos tu juego en Flame
-// =============================================================================
-class PaginaSimulacion extends StatelessWidget {
-  const PaginaSimulacion({super.key});
+class _MazeGameScreenState extends State<MazeGameScreen> {
+  // 1 = pared, 0 = vacío
+  final List<List<int>> maze = [
+    // 20 filas x 30 columnas
+    [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+    ],
+    [
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+    ],
+    [
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+    ],
+    [
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+    ],
+    [
+      1,
+      0,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+    ],
+    [
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+    ],
+    [
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+    ],
+    [
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+    ],
+    [
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+    ],
+    [
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+    ],
+    [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+    ],
+    [
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      0,
+      0,
+      1,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+    ],
+    [
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+    ],
+    [
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+    ],
+    [
+      1,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      1,
+      1,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+    ],
+    [
+      1,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      1,
+      1,
+      0,
+      1,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      1,
+    ],
+    [
+      1,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0,
+      1,
+    ],
+    [
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+    ],
+    [
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+    ],
+    [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+    ],
+  ];
+  // Posición inicial del personaje (fila, columna)
+  int playerRow = 1;
+  int playerCol = 1;
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: GameWidget(
-        game: MiMundo(),
-        focusNode: FocusNode(),
-        autofocus: true,
-      ),
-    );
+  // Posición inicial del seeker (buscador)
+  int seekerRow = 18;
+  int seekerCol = 28;
+
+  bool seekerActive = false;
+
+  void startSeeker() {
+    setState(() {
+      seekerActive = true;
+    });
+    moveSeeker();
   }
-}
 
-// =============================================================================
-// 4) Tu código del juego: MiMundo, TileMap, Hider y Seeker (sin cambios)
-// =============================================================================
-class MiMundo extends FlameGame
-    with HasCollisionDetection, HasKeyboardHandlerComponents {
-  static const tileSize = 64.0;
+  void moveSeeker() async {
+    while (seekerActive && (seekerRow != playerRow || seekerCol != playerCol)) {
+      await Future.delayed(const Duration(milliseconds: 250));
+      int dRow = playerRow - seekerRow;
+      int dCol = playerCol - seekerCol;
+      int stepRow = dRow == 0 ? 0 : dRow ~/ dRow.abs();
+      int stepCol = dCol == 0 ? 0 : dCol ~/ dCol.abs();
 
-  @override
-  Future<void> onLoad() async {
-    add(TileMap());
+      // Prioridad: primero fila, luego columna
+      int nextRow = seekerRow + (stepRow != 0 ? stepRow : 0);
+      int nextCol = seekerCol + (stepRow == 0 && stepCol != 0 ? stepCol : 0);
 
-    const hiderRow = 3, hiderCol = 2;
-    const seekerRow = 8, seekerCol = 12;
-
-    add(
-      Hider(
-        position: Vector2(
-          hiderCol * tileSize + tileSize / 2,
-          hiderRow * tileSize + tileSize,
-        ),
-      ),
-    );
-    add(
-      Seeker(
-        position: Vector2(
-          seekerCol * tileSize + tileSize / 2,
-          seekerRow * tileSize + tileSize,
-        ),
-      ),
-    );
-  }
-}
-
-class TileMap extends Component with HasGameRef<FlameGame> {
-  @override
-  Future<void> onLoad() async {
-    final mapImage = await gameRef.images.load('maps/room1.png');
-    const tileSize = 64.0;
-    final sheet = SpriteSheet.fromColumnsAndRows(
-      image: mapImage,
-      columns: (mapImage.width / tileSize).floor(),
-      rows: (mapImage.height / tileSize).floor(),
-    );
-    for (int r = 0; r < sheet.rows; r++) {
-      for (int c = 0; c < sheet.columns; c++) {
-        add(
-          SpriteComponent(
-            sprite: sheet.getSprite(r, c),
-            size: Vector2.all(tileSize),
-            position: Vector2(c * tileSize, r * tileSize),
-          ),
-        );
+      // Verifica si puede moverse a la siguiente celda
+      if (maze[nextRow][nextCol] == 0) {
+        setState(() {
+          seekerRow = nextRow;
+          seekerCol = nextCol;
+        });
+      } else if (stepRow != 0 && maze[seekerRow + stepRow][seekerCol] == 0) {
+        setState(() {
+          seekerRow += stepRow;
+        });
+      } else if (stepCol != 0 && maze[seekerRow][seekerCol + stepCol] == 0) {
+        setState(() {
+          seekerCol += stepCol;
+        });
+      } else {
+        break; // No puede avanzar
+      }
+      // Si el seeker alcanza al jugador, termina
+      if (seekerRow == playerRow && seekerCol == playerCol) {
+        seekerActive = false;
+        // Aquí puedes mostrar un mensaje de "¡Te encontró!"
       }
     }
   }
-}
 
-class Hider extends SpriteAnimationComponent
-    with HasGameRef<FlameGame>, KeyboardHandler {
-  Hider({required Vector2 position})
-    : super(
-        position: position,
-        size: Vector2.all(64),
-        anchor: Anchor.bottomCenter,
-      );
-
-  late final SpriteAnimation _idle, _up, _down, _left, _right;
-  final speed = 100.0;
-  Vector2 velocity = Vector2.zero();
-
-  @override
-  Future<void> onLoad() async {
-    final img = await gameRef.images.load('characters/hider.png');
-    final sheet = SpriteSheet.fromColumnsAndRows(
-      image: img,
-      columns: 4,
-      rows: 3,
-    );
-
-    _idle = SpriteAnimation.spriteList([
-      sheet.getSprite(0, 0),
-    ], stepTime: double.infinity);
-    _down = sheet.createAnimation(row: 0, from: 1, to: 2, stepTime: 0.2);
-    _left = sheet.createAnimation(row: 0, from: 1, to: 2, stepTime: 0.2);
-    _right = sheet.createAnimation(row: 0, from: 1, to: 2, stepTime: 0.2);
-    _up = sheet.createAnimation(row: 0, from: 1, to: 2, stepTime: 0.2);
-
-    animation = _idle;
-  }
-
-  @override
-  void update(double dt) {
-    super.update(dt);
-    if (velocity != Vector2.zero()) position += velocity * dt;
-  }
-
-  @override
-  bool onKeyEvent(KeyEvent event, Set<LogicalKeyboardKey> keysPressed) {
-    velocity.setZero();
-    if (keysPressed.contains(LogicalKeyboardKey.arrowUp)) {
-      velocity.y = -speed;
-      animation = _up;
-    } else if (keysPressed.contains(LogicalKeyboardKey.arrowDown)) {
-      velocity.y = speed;
-      animation = _down;
-    } else if (keysPressed.contains(LogicalKeyboardKey.arrowLeft)) {
-      velocity.x = -speed;
-      animation = _left;
-    } else if (keysPressed.contains(LogicalKeyboardKey.arrowRight)) {
-      velocity.x = speed;
-      animation = _right;
-    } else {
-      animation = _idle;
+  void movePlayer(int dRow, int dCol) {
+    final newRow = playerRow + dRow;
+    final newCol = playerCol + dCol;
+    if (newRow >= 0 &&
+        newRow < maze.length &&
+        newCol >= 0 &&
+        newCol < maze[0].length &&
+        maze[newRow][newCol] == 0) {
+      setState(() {
+        playerRow = newRow;
+        playerCol = newCol;
+      });
     }
-    return true;
   }
-}
 
-class Seeker extends SpriteAnimationComponent with HasGameRef<FlameGame> {
-  Seeker({required Vector2 position})
-    : super(
-        position: position,
-        size: Vector2.all(64),
-        anchor: Anchor.bottomCenter,
-      );
+  // Soporte para teclado (desktop)
+  FocusNode focusNode = FocusNode();
 
   @override
-  Future<void> onLoad() async {
-    final img = await gameRef.images.load('characters/seeker.png');
-    final sheet = SpriteSheet.fromColumnsAndRows(
-      image: img,
-      columns: 4,
-      rows: 3,
-    );
+  void dispose() {
+    focusNode.dispose();
+    super.dispose();
+  }
 
-    // Un solo fotograma estático
-    animation = SpriteAnimation.spriteList([
-      sheet.getSprite(0, 0),
-    ], stepTime: double.infinity);
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF64CAF6),
+      body: Center(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Calcula el tamaño máximo disponible
+            final double maxWidth = constraints.maxWidth;
+            final double maxHeight = constraints.maxHeight;
+
+            // Calcula el tamaño de cada celda para que quepa el laberinto completo
+            final double maxMazeWidth = maxWidth < 900 ? maxWidth : 900;
+            final double maxMazeHeight = maxHeight < 600 ? maxHeight : 600;
+            final double tileSizeWidth = maxMazeWidth / maze[0].length;
+            final double tileSizeHeight = maxMazeHeight / maze.length;
+            final double tileSize =
+                tileSizeWidth < tileSizeHeight ? tileSizeWidth : tileSizeHeight;
+
+            return RawKeyboardListener(
+              focusNode: focusNode,
+              autofocus: true,
+              onKey: (event) {
+                if (event is RawKeyDownEvent) {
+                  if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                    movePlayer(-1, 0);
+                  } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                    movePlayer(1, 0);
+                  } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+                    movePlayer(0, -1);
+                  } else if (event.logicalKey ==
+                      LogicalKeyboardKey.arrowRight) {
+                    movePlayer(0, 1);
+                  }
+                }
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Botón para volver al menú principal
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black87,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        icon: const Icon(Icons.arrow_back),
+                        label: const Text("Menú principal"),
+                      ),
+                    ),
+                  ),
+                  Stack(
+                    children: [
+                      // Laberinto con límite de tamaño máximo
+                      SizedBox(
+                        width: maxWidth < 900 ? maxWidth : 900,
+                        height: maxHeight < 600 ? maxHeight : 600,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (int r = 0; r < maze.length; r++)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  for (int c = 0; c < maze[r].length; c++)
+                                    Container(
+                                      width: tileSize,
+                                      height: tileSize,
+                                      decoration: BoxDecoration(
+                                        color:
+                                            maze[r][c] == 1
+                                                ? Colors.grey[800]
+                                                : Colors.white,
+                                        border: Border.all(
+                                          color: Colors.grey[400]!,
+                                          width: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                          ],
+                        ),
+                      ),
+                      // Personaje Hider
+                      Positioned(
+                        left: playerCol * tileSize,
+                        top: playerRow * tileSize,
+                        child: SizedBox(
+                          width: tileSize,
+                          height: tileSize,
+                          child: Image.asset(
+                            'assets/characters/hider.png',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                      // Personaje Seeker
+                      Positioned(
+                        left: seekerCol * tileSize,
+                        top: seekerRow * tileSize,
+                        child: SizedBox(
+                          width: tileSize,
+                          height: tileSize,
+                          child: Image.asset(
+                            'assets/characters/seeker.png',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  // Botón para iniciar al seeker
+                  ElevatedButton.icon(
+                    onPressed: seekerActive ? null : startSeeker,
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text("¡Estoy listo!"),
+                  ),
+                  const SizedBox(height: 16),
+                  // Controles para móvil
+                  Wrap(
+                    spacing: 10,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () => movePlayer(-1, 0),
+                        child: const Icon(Icons.arrow_upward),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => movePlayer(1, 0),
+                        child: const Icon(Icons.arrow_downward),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => movePlayer(0, -1),
+                        child: const Icon(Icons.arrow_back),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => movePlayer(0, 1),
+                        child: const Icon(Icons.arrow_forward),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 }
