@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // para LogicalKeyboardKey
 
@@ -762,49 +764,147 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
   int seekerCol = 28;
 
   bool seekerActive = false;
+  Timer? seekerTimer;
+  Timer? countdownTimer;
+  int countdown = 30;
+  bool gameEnded = false;
 
+  // Modifica startSeeker para iniciar el temporizador y la búsqueda autónoma
   void startSeeker() {
     setState(() {
       seekerActive = true;
+      gameEnded = false;
+      countdown = 30;
     });
-    moveSeeker();
+    seekerTimer?.cancel();
+    countdownTimer?.cancel();
+    seekerTimer = Timer.periodic(const Duration(milliseconds: 250), (_) => moveSeekerAuto());
+    countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!seekerActive) return;
+      setState(() {
+        countdown--;
+      });
+      if (countdown <= 0) {
+        seekerActive = false;
+        seekerTimer?.cancel();
+        countdownTimer?.cancel();
+        if (!gameEnded) {
+          gameEnded = true;
+          showVictoryDialog();
+        }
+      }
+    });
   }
 
-  void moveSeeker() async {
-    while (seekerActive && (seekerRow != playerRow || seekerCol != playerCol)) {
-      await Future.delayed(const Duration(milliseconds: 250));
-      int dRow = playerRow - seekerRow;
-      int dCol = playerCol - seekerCol;
-      int stepRow = dRow == 0 ? 0 : dRow ~/ dRow.abs();
-      int stepCol = dCol == 0 ? 0 : dCol ~/ dCol.abs();
+  // Algoritmo de movimiento autónomo (aleatorio con preferencia hacia el hider)
+  void moveSeekerAuto() {
+    if (!seekerActive || gameEnded) return;
 
-      // Prioridad: primero fila, luego columna
-      int nextRow = seekerRow + (stepRow != 0 ? stepRow : 0);
-      int nextCol = seekerCol + (stepRow == 0 && stepCol != 0 ? stepCol : 0);
-
-      // Verifica si puede moverse a la siguiente celda
-      if (maze[nextRow][nextCol] == 0) {
-        setState(() {
-          seekerRow = nextRow;
-          seekerCol = nextCol;
-        });
-      } else if (stepRow != 0 && maze[seekerRow + stepRow][seekerCol] == 0) {
-        setState(() {
-          seekerRow += stepRow;
-        });
-      } else if (stepCol != 0 && maze[seekerRow][seekerCol + stepCol] == 0) {
-        setState(() {
-          seekerCol += stepCol;
-        });
-      } else {
-        break; // No puede avanzar
+    if (seekerRow == playerRow && seekerCol == playerCol) {
+      seekerActive = false;
+      seekerTimer?.cancel();
+      countdownTimer?.cancel();
+      if (!gameEnded) {
+        gameEnded = true;
+        showDefeatDialog();
       }
-      // Si el seeker alcanza al jugador, termina
-      if (seekerRow == playerRow && seekerCol == playerCol) {
-        seekerActive = false;
-        // Aquí puedes mostrar un mensaje de "¡Te encontró!"
+      return;
+    }
+
+    List<List<int>> directions = [
+      [-1, 0], // arriba
+      [1, 0],  // abajo
+      [0, -1], // izquierda
+      [0, 1],  // derecha
+    ];
+
+    // Ordena las direcciones por cercanía al hider
+    directions.sort((a, b) {
+      int distA = (playerRow - (seekerRow + a[0])).abs() + (playerCol - (seekerCol + a[1])).abs();
+      int distB = (playerRow - (seekerRow + b[0])).abs() + (playerCol - (seekerCol + b[1])).abs();
+      return distA.compareTo(distB);
+    });
+
+    bool moved = false;
+    for (var dir in directions) {
+      int newRow = seekerRow + dir[0];
+      int newCol = seekerCol + dir[1];
+      if (newRow >= 0 &&
+          newRow < maze.length &&
+          newCol >= 0 &&
+          newCol < maze[0].length &&
+          maze[newRow][newCol] == 0) {
+        setState(() {
+          seekerRow = newRow;
+          seekerCol = newCol;
+        });
+        moved = true;
+        break;
       }
     }
+
+    // Si no puede moverse hacia el hider, intenta moverse aleatoriamente
+    if (!moved) {
+      var rng = Random();
+      directions.shuffle(rng);
+      for (var dir in directions) {
+        int newRow = seekerRow + dir[0];
+        int newCol = seekerCol + dir[1];
+        if (newRow >= 0 &&
+            newRow < maze.length &&
+            newCol >= 0 &&
+            newCol < maze[0].length &&
+            maze[newRow][newCol] == 0) {
+          setState(() {
+            seekerRow = newRow;
+            seekerCol = newCol;
+          });
+          break;
+        }
+      }
+    }
+  }
+
+  // Muestra modal de victoria
+  void showVictoryDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text('¡Victoria!'),
+        content: const Text('¡El seeker no te encontró en 30 segundos!'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pop(); // Volver al menú principal
+            },
+            child: const Text('Volver al menú'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Muestra modal de derrota
+  void showDefeatDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text('¡Derrota!'),
+        content: const Text('¡El seeker te ha encontrado!'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pop(); // Volver al menú principal
+            },
+            child: const Text('Volver al menú'),
+          ),
+        ],
+      ),
+    );
   }
 
   void movePlayer(int dRow, int dCol) {
@@ -827,6 +927,8 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
 
   @override
   void dispose() {
+    seekerTimer?.cancel();
+    countdownTimer?.cancel();
     focusNode.dispose();
     super.dispose();
   }
@@ -867,119 +969,127 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
                   }
                 }
               },
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Botón para volver al menú principal
-                  Align(
-                    alignment: Alignment.topLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black87,
-                          foregroundColor: Colors.white,
+              child: SingleChildScrollView( // <-- Añade este widget
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Botón para volver al menú principal
+                    Align(
+                      alignment: Alignment.topLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black87,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          icon: const Icon(Icons.arrow_back),
+                          label: const Text("Menú principal"),
                         ),
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        icon: const Icon(Icons.arrow_back),
-                        label: const Text("Menú principal"),
                       ),
                     ),
-                  ),
-                  Stack(
-                    children: [
-                      // Laberinto con límite de tamaño máximo
-                      SizedBox(
-                        width: maxWidth < 900 ? maxWidth : 900,
-                        height: maxHeight < 600 ? maxHeight : 600,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            for (int r = 0; r < maze.length; r++)
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  for (int c = 0; c < maze[r].length; c++)
-                                    Container(
-                                      width: tileSize,
-                                      height: tileSize,
-                                      decoration: BoxDecoration(
-                                        color:
-                                            maze[r][c] == 1
-                                                ? Colors.grey[800]
-                                                : Colors.white,
-                                        border: Border.all(
-                                          color: Colors.grey[400]!,
-                                          width: 0.5,
+                    Stack(
+                      children: [
+                        // Laberinto con límite de tamaño máximo
+                        SizedBox(
+                          width: maxWidth < 900 ? maxWidth : 900,
+                          height: maxHeight < 600 ? maxHeight : 600,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (int r = 0; r < maze.length; r++)
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    for (int c = 0; c < maze[r].length; c++)
+                                      Container(
+                                        width: tileSize,
+                                        height: tileSize,
+                                        decoration: BoxDecoration(
+                                          color:
+                                              maze[r][c] == 1
+                                                  ? Colors.grey[800]
+                                                  : Colors.white,
+                                          border: Border.all(
+                                            color: Colors.grey[400]!,
+                                            width: 0.5,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                ],
-                              ),
-                          ],
-                        ),
-                      ),
-                      // Personaje Hider
-                      Positioned(
-                        left: playerCol * tileSize,
-                        top: playerRow * tileSize,
-                        child: SizedBox(
-                          width: tileSize,
-                          height: tileSize,
-                          child: Image.asset(
-                            'assets/characters/hider.png',
-                            fit: BoxFit.contain,
+                                  ],
+                                ),
+                            ],
                           ),
                         ),
-                      ),
-                      // Personaje Seeker
-                      Positioned(
-                        left: seekerCol * tileSize,
-                        top: seekerRow * tileSize,
-                        child: SizedBox(
-                          width: tileSize,
-                          height: tileSize,
-                          child: Image.asset(
-                            'assets/characters/seeker.png',
-                            fit: BoxFit.contain,
+                        // Personaje Hider
+                        Positioned(
+                          left: playerCol * tileSize,
+                          top: playerRow * tileSize,
+                          child: SizedBox(
+                            width: tileSize,
+                            height: tileSize,
+                            child: Image.asset(
+                              'assets/characters/hider.png',
+                              fit: BoxFit.contain,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  // Botón para iniciar al seeker
-                  ElevatedButton.icon(
-                    onPressed: seekerActive ? null : startSeeker,
-                    icon: const Icon(Icons.play_arrow),
-                    label: const Text("¡Estoy listo!"),
-                  ),
-                  const SizedBox(height: 16),
-                  // Controles para móvil
-                  Wrap(
-                    spacing: 10,
-                    children: [
-                      ElevatedButton(
-                        onPressed: () => movePlayer(-1, 0),
-                        child: const Icon(Icons.arrow_upward),
-                      ),
-                      ElevatedButton(
-                        onPressed: () => movePlayer(1, 0),
-                        child: const Icon(Icons.arrow_downward),
-                      ),
-                      ElevatedButton(
-                        onPressed: () => movePlayer(0, -1),
-                        child: const Icon(Icons.arrow_back),
-                      ),
-                      ElevatedButton(
-                        onPressed: () => movePlayer(0, 1),
-                        child: const Icon(Icons.arrow_forward),
-                      ),
-                    ],
-                  ),
-                ],
+                        // Personaje Seeker
+                        Positioned(
+                          left: seekerCol * tileSize,
+                          top: seekerRow * tileSize,
+                          child: SizedBox(
+                            width: tileSize,
+                            height: tileSize,
+                            child: Image.asset(
+                              'assets/characters/seeker.png',
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    // Botón para iniciar al seeker
+                    ElevatedButton.icon(
+                      onPressed: seekerActive ? null : startSeeker,
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text("¡Estoy listo!"),
+                    ),
+                    const SizedBox(height: 16),
+                    // Controles para móvil
+                    Wrap(
+                      spacing: 10,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () => movePlayer(-1, 0),
+                          child: const Icon(Icons.arrow_upward),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => movePlayer(1, 0),
+                          child: const Icon(Icons.arrow_downward),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => movePlayer(0, -1),
+                          child: const Icon(Icons.arrow_back),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => movePlayer(0, 1),
+                          child: const Icon(Icons.arrow_forward),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // Muestra el temporizador
+                    Text(
+                      'Tiempo restante: $countdown s',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
               ),
             );
           },
