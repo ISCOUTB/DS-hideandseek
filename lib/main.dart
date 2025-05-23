@@ -32,21 +32,17 @@ class MainApp extends StatelessWidget {
 // =============================================================================
 // 1) MainMenu: pantalla inicial con opciones
 // =============================================================================
+
 class MainMenu extends StatelessWidget {
   const MainMenu({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        color: const Color(0xFF64CAF6),
-        child: Center(
-          child: Container(
-            padding: const EdgeInsets.all(30),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.8),
-              borderRadius: BorderRadius.circular(20),
-            ),
+      body: Stack(
+        children: [
+          const CloudBackground(),
+          Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -59,42 +55,334 @@ class MainMenu extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-                _MenuButton(
+                MenuButton(
                   "Iniciar",
                   onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const MazeGameScreen()),
+                    Navigator.of(context).push(_createRoute());
+                  },
+                ),
+                MenuButton(
+                  "Opciones",
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const OptionsScreen(),
+                      ),
                     );
                   },
                 ),
-                _MenuButton("Opciones", onPressed: () {}),
+                MenuButton(
+                  "Créditos",
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CreditsScreen(),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------- Transición entre Pantallas ---------------- //
+PageRouteBuilder _createRoute() {
+  return PageRouteBuilder(
+    pageBuilder:
+        (context, animation, secondaryAnimation) => const MazeGameScreen(),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      const begin = Offset(1.0, 0.0);
+      const end = Offset.zero;
+      const curve = Curves.easeInOut;
+
+      var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+
+      return SlideTransition(position: animation.drive(tween), child: child);
+    },
+  );
+}
+
+// ---------------- Fondo con Nubes ---------------- //
+class CloudBackground extends StatefulWidget {
+  const CloudBackground({super.key});
+
+  @override
+  _CloudBackgroundState createState() => _CloudBackgroundState();
+}
+
+class _CloudBackgroundState extends State<CloudBackground>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  List<Cloud> clouds = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 10),
+      vsync: this,
+    )..repeat();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _generateClouds();
+    });
+  }
+
+  void _generateClouds() {
+    double screenWidth = MediaQuery.of(context).size.width;
+    double screenHeight = MediaQuery.of(context).size.height;
+
+    setState(() {
+      clouds = List.generate(8, (index) {
+        return Cloud(
+          left: Random().nextDouble() * screenWidth,
+          top: Random().nextDouble() * screenHeight,
+          speed: Random().nextDouble() * 2 + 1,
+        );
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        for (var cloud in clouds) {
+          cloud.left += cloud.speed;
+          if (cloud.left > MediaQuery.of(context).size.width) {
+            cloud.left = -100;
+          }
+        }
+        return Container(
+          color: const Color.fromARGB(255, 100, 202, 246),
+          child: Stack(
+            children:
+                clouds.map((cloud) {
+                  return Positioned(
+                    left: cloud.left,
+                    top: cloud.top,
+                    child: Image.asset(
+                      "assets/imagen/cloud.png",
+                      width: 120,
+                      height: 80,
+                    ),
+                  );
+                }).toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+}
+
+class Cloud {
+  double left;
+  double top;
+  double speed;
+
+  Cloud({required this.left, required this.top, required this.speed});
+}
+
+// ---------------- Botones del Menú ---------------- //
+class MenuButton extends StatelessWidget {
+  final String text;
+  final VoidCallback onPressed;
+
+  const MenuButton(this.text, {required this.onPressed, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Material(
+        elevation: 5,
+        borderRadius: BorderRadius.circular(10),
+        color: Colors.transparent,
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          onPressed: onPressed,
+          child: Text(text, style: const TextStyle(fontSize: 18)),
         ),
       ),
     );
   }
 }
 
-class _MenuButton extends StatelessWidget {
-  final String text;
-  final VoidCallback onPressed;
-  const _MenuButton(this.text, {required this.onPressed});
+// ---------------- Pantalla de Opciones ---------------- //
+class OptionsScreen extends StatefulWidget {
+  const OptionsScreen({super.key});
+
+  @override
+  State<OptionsScreen> createState() => _OptionsScreenState();
+}
+
+class _OptionsScreenState extends State<OptionsScreen> {
+  double volume = 50;
+  String selectedLanguage = 'Español';
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.red,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 36),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        onPressed: onPressed,
-        child: Text(text, style: const TextStyle(fontSize: 18)),
+    return Scaffold(
+      body: Stack(
+        children: [
+          const CloudBackground(),
+          Center(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    "Opciones",
+                    style: TextStyle(
+                      fontSize: 40,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    "Volumen",
+                    style: TextStyle(fontSize: 20, color: Colors.white),
+                  ),
+                  Slider(
+                    value: volume,
+                    min: 0,
+                    max: 100,
+                    divisions: 100,
+                    label: volume.round().toString(),
+                    onChanged: (double value) {
+                      setState(() {
+                        volume = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    "Idioma",
+                    style: TextStyle(fontSize: 20, color: Colors.white),
+                  ),
+                  DropdownButton<String>(
+                    value: selectedLanguage,
+                    dropdownColor: Colors.blue[100],
+                    iconEnabledColor: Colors.white,
+                    items:
+                        <String>['Español', 'Inglés']
+                            .map(
+                              (String value) => DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              ),
+                            )
+                            .toList(),
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        selectedLanguage = newValue!;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  MenuButton(
+                    "Atrás",
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    "Versión: 1.2.01",
+                    style: TextStyle(fontSize: 16, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------- Pantalla de Créditos ---------------- //
+class CreditsScreen extends StatelessWidget {
+  const CreditsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          const CloudBackground(),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Créditos",
+                  style: TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 15),
+                const Text(
+                  "Desarrolladores:",
+                  style: TextStyle(fontSize: 20, color: Colors.white),
+                ),
+                const SizedBox(height: 5),
+                const Text(
+                  "• Eddy Lara",
+                  style: TextStyle(fontSize: 18, color: Colors.white),
+                ),
+                const Text(
+                  "• David Pelaez",
+                  style: TextStyle(fontSize: 18, color: Colors.white),
+                ),
+                const Text(
+                  "• Jose Pereira",
+                  style: TextStyle(fontSize: 18, color: Colors.white),
+                ),
+                const Text(
+                  "• Juan caicedo",
+                  style: TextStyle(fontSize: 18, color: Colors.white),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  "Agradecimientos a: copilot",
+                  style: TextStyle(fontSize: 18, color: Colors.white),
+                ),
+                const SizedBox(height: 20),
+                MenuButton(
+                  "Atrás",
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -778,7 +1066,10 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
     });
     seekerTimer?.cancel();
     countdownTimer?.cancel();
-    seekerTimer = Timer.periodic(const Duration(milliseconds: 250), (_) => moveSeekerAuto());
+    seekerTimer = Timer.periodic(
+      const Duration(milliseconds: 250),
+      (_) => moveSeekerAuto(),
+    );
     countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!seekerActive) return;
       setState(() {
@@ -813,15 +1104,19 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
 
     List<List<int>> directions = [
       [-1, 0], // arriba
-      [1, 0],  // abajo
+      [1, 0], // abajo
       [0, -1], // izquierda
-      [0, 1],  // derecha
+      [0, 1], // derecha
     ];
 
     // Ordena las direcciones por cercanía al hider
     directions.sort((a, b) {
-      int distA = (playerRow - (seekerRow + a[0])).abs() + (playerCol - (seekerCol + a[1])).abs();
-      int distB = (playerRow - (seekerRow + b[0])).abs() + (playerCol - (seekerCol + b[1])).abs();
+      int distA =
+          (playerRow - (seekerRow + a[0])).abs() +
+          (playerCol - (seekerCol + a[1])).abs();
+      int distB =
+          (playerRow - (seekerRow + b[0])).abs() +
+          (playerCol - (seekerCol + b[1])).abs();
       return distA.compareTo(distB);
     });
 
@@ -870,19 +1165,20 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: const Text('¡Victoria!'),
-        content: const Text('¡El seeker no te encontró en 30 segundos!'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pop(); // Volver al menú principal
-            },
-            child: const Text('Volver al menú'),
+      builder:
+          (_) => AlertDialog(
+            title: const Text('¡Victoria!'),
+            content: const Text('¡El seeker no te encontró en 30 segundos!'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pop(); // Volver al menú principal
+                },
+                child: const Text('Volver al menú'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -891,19 +1187,20 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: const Text('¡Derrota!'),
-        content: const Text('¡El seeker te ha encontrado!'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pop(); // Volver al menú principal
-            },
-            child: const Text('Volver al menú'),
+      builder:
+          (_) => AlertDialog(
+            title: const Text('¡Derrota!'),
+            content: const Text('¡El seeker te ha encontrado!'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pop(); // Volver al menú principal
+                },
+                child: const Text('Volver al menú'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -969,7 +1266,7 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
                   }
                 }
               },
-              child: SingleChildScrollView( // <-- Añade este widget
+              child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -1086,7 +1383,10 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
                     // Muestra el temporizador
                     Text(
                       'Tiempo restante: $countdown s',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),

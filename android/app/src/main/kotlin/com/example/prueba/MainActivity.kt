@@ -1,4 +1,4 @@
-package com.example.hiden_and_seek_v2
+package com.example.prueba
 
 import io.flutter.embedding.android.FlutterActivity
 

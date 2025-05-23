@@ -1,4 +1,4 @@
-name: hide_and_seek_v2
+name: prueba
 description: "A new Flutter project."
 publish_to: 'none'
 version: 0.1.0
@@ -26,3 +26,4 @@ flutter:
     - assets/characters/seeker.png
     - assets/maps/room1.png
     - assets/maps/room2.png
+    - assets/imagen/cloud.png
