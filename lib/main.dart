@@ -1,7 +1,8 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // para LogicalKeyboardKey
+import 'package:flutter/services.dart';
 
 // =============================================================================
 // main() y App scaffold
@@ -401,7 +402,6 @@ class MazeGameScreen extends StatefulWidget {
 class _MazeGameScreenState extends State<MazeGameScreen> {
   // 1 = pared, 0 = vacío
   final List<List<int>> maze = [
-    // 20 filas x 30 columnas
     [
       1,
       1,
@@ -1049,20 +1049,33 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
 
   // Posición inicial del seeker (buscador)
   int seekerRow = 18;
-  int seekerCol = 28;
+  int seekerCol = 1;
 
   bool seekerActive = false;
   Timer? seekerTimer;
   Timer? countdownTimer;
-  int countdown = 30;
+  int countdown = 30; // duración inicial
   bool gameEnded = false;
+
+  // Variables para exploración
+  Set<String> seekerVisited = {};
+  List<List<int>> seekerPath = [];
+  int seekerTargetRow = 1;
+  int seekerTargetCol = 1;
+
+  // Nueva variable para la zona segura del seeker
+  Set<String> seekerSafeZone = {};
 
   // Modifica startSeeker para iniciar el temporizador y la búsqueda autónoma
   void startSeeker() {
     setState(() {
       seekerActive = true;
       gameEnded = false;
-      countdown = 30;
+      countdown = 30; // reinicia a 30 segundos
+      seekerVisited.clear();
+      seekerPath.clear();
+      seekerTargetRow = seekerRow;
+      seekerTargetCol = seekerCol;
     });
     seekerTimer?.cancel();
     countdownTimer?.cancel();
@@ -1087,10 +1100,83 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
     });
   }
 
+  // Nueva función para encontrar la siguiente celda no visitada más cercana
+  List<int>? findNextUnvisitedCell() {
+    Queue<List<int>> queue = Queue();
+    Set<String> localVisited = {};
+    queue.add([seekerRow, seekerCol]);
+    localVisited.add('$seekerRow,$seekerCol');
+    while (queue.isNotEmpty) {
+      var current = queue.removeFirst();
+      int row = current[0];
+      int col = current[1];
+      if (maze[row][col] == 0 &&
+          !seekerVisited.contains('$row,$col') &&
+          !seekerSafeZone.contains('$row,$col')) {
+        return [row, col];
+      }
+      for (var dir in [
+        [-1, 0],
+        [1, 0],
+        [0, -1],
+        [0, 1],
+      ]) {
+        int nRow = row + dir[0];
+        int nCol = col + dir[1];
+        if (nRow >= 0 &&
+            nRow < maze.length &&
+            nCol >= 0 &&
+            nCol < maze[0].length &&
+            maze[nRow][nCol] == 0 &&
+            !localVisited.contains('$nRow,$nCol')) {
+          queue.add([nRow, nCol]);
+          localVisited.add('$nRow,$nCol');
+        }
+      }
+    }
+    return null;
+  }
+
+  List<int>? findNextUnvisitedCellAvoidingVisited() {
+    Queue<List<int>> queue = Queue();
+    Set<String> localVisited = {};
+    queue.add([seekerRow, seekerCol]);
+    localVisited.add('$seekerRow,$seekerCol');
+    while (queue.isNotEmpty) {
+      var current = queue.removeFirst();
+      int row = current[0];
+      int col = current[1];
+      if (maze[row][col] == 0 && !seekerVisited.contains('$row,$col')) {
+        return [row, col];
+      }
+      for (var dir in [
+        [-1, 0],
+        [1, 0],
+        [0, -1],
+        [0, 1],
+      ]) {
+        int nRow = row + dir[0];
+        int nCol = col + dir[1];
+        if (nRow >= 0 &&
+            nRow < maze.length &&
+            nCol >= 0 &&
+            nCol < maze[0].length &&
+            maze[nRow][nCol] == 0 &&
+            !localVisited.contains('$nRow,$nCol') &&
+            !seekerVisited.contains('$nRow,$nCol')) {
+          queue.add([nRow, nCol]);
+          localVisited.add('$nRow,$nCol');
+        }
+      }
+    }
+    return null;
+  }
+
   // Algoritmo de movimiento autónomo (aleatorio con preferencia hacia el hider)
   void moveSeekerAuto() {
     if (!seekerActive || gameEnded) return;
 
+    // Si el seeker encuentra al hider
     if (seekerRow == playerRow && seekerCol == playerCol) {
       seekerActive = false;
       seekerTimer?.cancel();
@@ -1102,61 +1188,50 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
       return;
     }
 
-    List<List<int>> directions = [
-      [-1, 0], // arriba
-      [1, 0], // abajo
-      [0, -1], // izquierda
-      [0, 1], // derecha
-    ];
-
-    // Ordena las direcciones por cercanía al hider
-    directions.sort((a, b) {
-      int distA =
-          (playerRow - (seekerRow + a[0])).abs() +
-          (playerCol - (seekerCol + a[1])).abs();
-      int distB =
-          (playerRow - (seekerRow + b[0])).abs() +
-          (playerCol - (seekerCol + b[1])).abs();
-      return distA.compareTo(distB);
-    });
-
-    bool moved = false;
-    for (var dir in directions) {
-      int newRow = seekerRow + dir[0];
-      int newCol = seekerCol + dir[1];
-      if (newRow >= 0 &&
-          newRow < maze.length &&
-          newCol >= 0 &&
-          newCol < maze[0].length &&
-          maze[newRow][newCol] == 0) {
+    // Si el hider está a 4 bloques o menos (distancia Manhattan)
+    int dist = (seekerRow - playerRow).abs() + (seekerCol - playerCol).abs();
+    if (dist <= 4) {
+      final path = findPathAStar(seekerRow, seekerCol, playerRow, playerCol);
+      if (path.isNotEmpty) {
+        final nextStep = path.first;
         setState(() {
-          seekerRow = newRow;
-          seekerCol = newCol;
+          seekerRow = nextStep[0];
+          seekerCol = nextStep[1];
+          seekerVisited.add('$seekerRow,$seekerCol');
+          marcarZonaSegura(seekerRow, seekerCol);
         });
-        moved = true;
-        break;
+        return;
       }
     }
 
-    // Si no puede moverse hacia el hider, intenta moverse aleatoriamente
-    if (!moved) {
-      var rng = Random();
-      directions.shuffle(rng);
-      for (var dir in directions) {
-        int newRow = seekerRow + dir[0];
-        int newCol = seekerCol + dir[1];
-        if (newRow >= 0 &&
-            newRow < maze.length &&
-            newCol >= 0 &&
-            newCol < maze[0].length &&
-            maze[newRow][newCol] == 0) {
-          setState(() {
-            seekerRow = newRow;
-            seekerCol = newCol;
-          });
-          break;
-        }
+    // Marca la celda actual como visitada y zona segura
+    seekerVisited.add('$seekerRow,$seekerCol');
+    marcarZonaSegura(seekerRow, seekerCol);
+
+    // Busca la siguiente celda no visitada más cercana (permitiendo retroceder y evitando zona segura)
+    List<int>? next = findNextUnvisitedCellAllowingBacktrack();
+    if (next == null) {
+      // Ya visitó todo y no encontró al hider
+      seekerActive = false;
+      seekerTimer?.cancel();
+      countdownTimer?.cancel();
+      if (!gameEnded) {
+        gameEnded = true;
+        showVictoryDialog();
       }
+      return;
+    }
+
+    // Calcula el camino (puede pasar por visitadas si es necesario para salir)
+    final path = findPathAStar(seekerRow, seekerCol, next[0], next[1]);
+    if (path.isNotEmpty) {
+      final nextStep = path.first;
+      setState(() {
+        seekerRow = nextStep[0];
+        seekerCol = nextStep[1];
+        seekerVisited.add('$seekerRow,$seekerCol');
+        marcarZonaSegura(seekerRow, seekerCol);
+      });
     }
   }
 
@@ -1288,66 +1363,60 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
                         ),
                       ),
                     ),
-                    Stack(
-                      children: [
-                        // Laberinto con límite de tamaño máximo
-                        SizedBox(
-                          width: maxWidth < 900 ? maxWidth : 900,
-                          height: maxHeight < 600 ? maxHeight : 600,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              for (int r = 0; r < maze.length; r++)
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    for (int c = 0; c < maze[r].length; c++)
-                                      Container(
-                                        width: tileSize,
-                                        height: tileSize,
-                                        decoration: BoxDecoration(
-                                          color:
-                                              maze[r][c] == 1
-                                                  ? Colors.grey[800]
-                                                  : Colors.white,
-                                          border: Border.all(
-                                            color: Colors.grey[400]!,
-                                            width: 0.5,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
+                    SizedBox(
+                      width: maxWidth < 900 ? maxWidth : 900,
+                      height: maxHeight < 600 ? maxHeight : 600,
+                      child: Stack(
+                        children: [
+                          // Dibuja las celdas
+                          for (int r = 0; r < maze.length; r++)
+                            for (int c = 0; c < maze[r].length; c++)
+                              Positioned(
+                                left: c * tileSize,
+                                top: r * tileSize,
+                                child: Container(
+                                  width: tileSize,
+                                  height: tileSize,
+                                  decoration: BoxDecoration(
+                                    color:
+                                        maze[r][c] == 1
+                                            ? Colors.grey[800]
+                                            : Colors.white,
+                                    border: Border.all(
+                                      color: Colors.grey[400]!,
+                                      width: 0.5,
+                                    ),
+                                  ),
                                 ),
-                            ],
-                          ),
-                        ),
-                        // Personaje Hider
-                        Positioned(
-                          left: playerCol * tileSize,
-                          top: playerRow * tileSize,
-                          child: SizedBox(
-                            width: tileSize,
-                            height: tileSize,
-                            child: Image.asset(
-                              'assets/characters/hider.png',
-                              fit: BoxFit.contain,
+                              ),
+                          // Personaje Hider
+                          Positioned(
+                            left: playerCol * tileSize,
+                            top: playerRow * tileSize,
+                            child: SizedBox(
+                              width: tileSize,
+                              height: tileSize,
+                              child: Image.asset(
+                                'assets/characters/hider.png',
+                                fit: BoxFit.contain,
+                              ),
                             ),
                           ),
-                        ),
-                        // Personaje Seeker
-                        Positioned(
-                          left: seekerCol * tileSize,
-                          top: seekerRow * tileSize,
-                          child: SizedBox(
-                            width: tileSize,
-                            height: tileSize,
-                            child: Image.asset(
-                              'assets/characters/seeker.png',
-                              fit: BoxFit.contain,
+                          // Personaje Seeker
+                          Positioned(
+                            left: seekerCol * tileSize,
+                            top: seekerRow * tileSize,
+                            child: SizedBox(
+                              width: tileSize,
+                              height: tileSize,
+                              child: Image.asset(
+                                'assets/characters/seeker.png',
+                                fit: BoxFit.contain,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 24),
                     // Botón para iniciar al seeker
@@ -1396,5 +1465,211 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
         ),
       ),
     );
+  }
+
+  List<List<int>> findPathAStar(
+    int startRow,
+    int startCol,
+    int goalRow,
+    int goalCol,
+  ) {
+    final openSet = <List<int>>[
+      [startRow, startCol],
+    ];
+    final cameFrom = <String, List<int>>{};
+    final gScore = <String, int>{};
+    final fScore = <String, int>{};
+
+    String key(int row, int col) => "$row,$col";
+
+    gScore[key(startRow, startCol)] = 0;
+    fScore[key(startRow, startCol)] =
+        (goalRow - startRow).abs() + (goalCol - startCol).abs();
+
+    while (openSet.isNotEmpty) {
+      // Encuentra el nodo con menor fScore
+      openSet.sort(
+        (a, b) => fScore[key(a[0], a[1])]!.compareTo(fScore[key(b[0], b[1])]!),
+      );
+      final current = openSet.removeAt(0);
+      final row = current[0];
+      final col = current[1];
+
+      if (row == goalRow && col == goalCol) {
+        // Reconstruir el camino
+        final path = <List<int>>[];
+        var curr = current;
+        while (cameFrom.containsKey(key(curr[0], curr[1]))) {
+          path.insert(0, curr);
+          curr = cameFrom[key(curr[0], curr[1])]!;
+        }
+        return path;
+      }
+
+      final neighbors = [
+        [row - 1, col], // arriba
+        [row + 1, col], // abajo
+        [row, col - 1], // izquierda
+        [row, col + 1], // derecha
+      ];
+
+      for (final neighbor in neighbors) {
+        final nRow = neighbor[0];
+        final nCol = neighbor[1];
+
+        if (nRow < 0 ||
+            nRow >= maze.length ||
+            nCol < 0 ||
+            nCol >= maze[0].length) {
+          continue;
+        }
+        if (maze[nRow][nCol] == 1) continue; // pared
+
+        final tentativeG = gScore[key(row, col)]! + 1;
+
+        if (tentativeG < (gScore[key(nRow, nCol)] ?? double.infinity)) {
+          cameFrom[key(nRow, nCol)] = [row, col];
+          gScore[key(nRow, nCol)] = tentativeG;
+          fScore[key(nRow, nCol)] =
+              tentativeG + (goalRow - nRow).abs() + (goalCol - nCol).abs();
+
+          if (!openSet.any((n) => n[0] == nRow && n[1] == nCol)) {
+            openSet.add([nRow, nCol]);
+          }
+        }
+      }
+    }
+
+    return []; // No se encontró camino
+  }
+
+  List<List<int>> findPathAStarAvoidingVisited(
+    int startRow,
+    int startCol,
+    int goalRow,
+    int goalCol,
+  ) {
+    final openSet = <List<int>>[
+      [startRow, startCol],
+    ];
+    final cameFrom = <String, List<int>>{};
+    final gScore = <String, int>{};
+    final fScore = <String, int>{};
+
+    String key(int row, int col) => "$row,$col";
+
+    gScore[key(startRow, startCol)] = 0;
+    fScore[key(startRow, startCol)] =
+        (goalRow - startRow).abs() + (goalCol - startCol).abs();
+
+    while (openSet.isNotEmpty) {
+      openSet.sort(
+        (a, b) => fScore[key(a[0], a[1])]!.compareTo(fScore[key(b[0], b[1])]!),
+      );
+      final current = openSet.removeAt(0);
+      final row = current[0];
+      final col = current[1];
+
+      if (row == goalRow && col == goalCol) {
+        final path = <List<int>>[];
+        var curr = current;
+        while (cameFrom.containsKey(key(curr[0], curr[1]))) {
+          path.insert(0, curr);
+          curr = cameFrom[key(curr[0], curr[1])]!;
+        }
+        return path;
+      }
+
+      final neighbors = [
+        [row - 1, col],
+        [row + 1, col],
+        [row, col - 1],
+        [row, col + 1],
+      ];
+
+      for (final neighbor in neighbors) {
+        final nRow = neighbor[0];
+        final nCol = neighbor[1];
+
+        if (nRow < 0 ||
+            nRow >= maze.length ||
+            nCol < 0 ||
+            nCol >= maze[0].length)
+          continue;
+        if (maze[nRow][nCol] == 1) continue; // pared
+        if (seekerVisited.contains('$nRow,$nCol')) continue; // evita visitados
+
+        final tentativeG = gScore[key(row, col)]! + 1;
+
+        if (tentativeG < (gScore[key(nRow, nCol)] ?? double.infinity)) {
+          cameFrom[key(nRow, nCol)] = [row, col];
+          gScore[key(nRow, nCol)] = tentativeG;
+          fScore[key(nRow, nCol)] =
+              tentativeG + (goalRow - nRow).abs() + (goalCol - nCol).abs();
+
+          if (!openSet.any((n) => n[0] == nRow && n[1] == nCol)) {
+            openSet.add([nRow, nCol]);
+          }
+        }
+      }
+    }
+
+    return [];
+  }
+
+  List<int>? findNextUnvisitedCellAllowingBacktrack() {
+    // BFS: busca la celda no visitada más cercana, aunque tenga que pasar por visitadas,
+    // pero ignora las que están en la zona segura
+    Queue<List<int>> queue = Queue();
+    Set<String> localVisited = {};
+    queue.add([seekerRow, seekerCol]);
+    localVisited.add('$seekerRow,$seekerCol');
+    while (queue.isNotEmpty) {
+      var current = queue.removeFirst();
+      int row = current[0];
+      int col = current[1];
+      if (maze[row][col] == 0 &&
+          !seekerVisited.contains('$row,$col') &&
+          !seekerSafeZone.contains('$row,$col')) {
+        return [row, col];
+      }
+      for (var dir in [
+        [-1, 0],
+        [1, 0],
+        [0, -1],
+        [0, 1],
+      ]) {
+        int nRow = row + dir[0];
+        int nCol = col + dir[1];
+        if (nRow >= 0 &&
+            nRow < maze.length &&
+            nCol >= 0 &&
+            nCol < maze[0].length &&
+            maze[nRow][nCol] == 0 &&
+            !localVisited.contains('$nRow,$nCol')) {
+          queue.add([nRow, nCol]);
+          localVisited.add('$nRow,$nCol');
+        }
+      }
+    }
+    return null;
+  }
+
+  void marcarZonaSegura(int row, int col) {
+    for (int dr = -4; dr <= 4; dr++) {
+      for (int dc = -4; dc <= 4; dc++) {
+        if ((dr.abs() + dc.abs()) <= 4) {
+          int nr = row + dr;
+          int nc = col + dc;
+          if (nr >= 0 &&
+              nr < maze.length &&
+              nc >= 0 &&
+              nc < maze[0].length &&
+              maze[nr][nc] == 0) {
+            seekerSafeZone.add('$nr,$nc');
+          }
+        }
+      }
+    }
   }
 }
