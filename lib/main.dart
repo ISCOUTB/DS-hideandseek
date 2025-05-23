@@ -21,7 +21,7 @@ class MainApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color.fromARGB(255, 59, 87, 211),
+          seedColor: const Color.fromARGB(255, 75, 183, 219),
         ),
       ),
       home: const MainMenu(),
@@ -34,32 +34,59 @@ class MainApp extends StatelessWidget {
 // 1) MainMenu: pantalla inicial con opciones
 // =============================================================================
 
-class MainMenu extends StatelessWidget {
+class MainMenu extends StatefulWidget {
   const MainMenu({super.key});
+
+  @override
+  State<MainMenu> createState() => _MainMenuState();
+}
+
+class _MainMenuState extends State<MainMenu> {
+  String selectedDifficulty = 'medio';
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF64CAF6),
       body: Stack(
         children: [
           const CloudBackground(),
           Center(
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Text(
                   "Hide and Seek",
                   style: TextStyle(
                     fontSize: 40,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: Color.fromARGB(255, 0, 0, 0),
                   ),
                 ),
                 const SizedBox(height: 20),
+                DropdownButton<String>(
+                  value: selectedDifficulty,
+                  items: const [
+                    DropdownMenuItem(value: 'facil', child: Text('Fácil')),
+                    DropdownMenuItem(value: 'medio', child: Text('Medio')),
+                    DropdownMenuItem(value: 'dificil', child: Text('Difícil')),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      selectedDifficulty = value!;
+                    });
+                  },
+                ),
                 MenuButton(
                   "Iniciar",
                   onPressed: () {
-                    Navigator.of(context).push(_createRoute());
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder:
+                            (context) =>
+                                const MazeGameScreen(), // Sin dificultad
+                      ),
+                    );
                   },
                 ),
                 MenuButton(
@@ -123,6 +150,10 @@ class _CloudBackgroundState extends State<CloudBackground>
   late AnimationController _controller;
   List<Cloud> clouds = [];
 
+  // Nuevas variables para el tamaño anterior
+  double _lastWidth = 0;
+  double _lastHeight = 0;
+
   @override
   void initState() {
     super.initState();
@@ -136,9 +167,9 @@ class _CloudBackgroundState extends State<CloudBackground>
     });
   }
 
-  void _generateClouds() {
-    double screenWidth = MediaQuery.of(context).size.width;
-    double screenHeight = MediaQuery.of(context).size.height;
+  void _generateClouds([double? width, double? height]) {
+    double screenWidth = width ?? MediaQuery.of(context).size.width;
+    double screenHeight = height ?? MediaQuery.of(context).size.height;
 
     setState(() {
       clouds = List.generate(8, (index) {
@@ -153,31 +184,49 @@ class _CloudBackgroundState extends State<CloudBackground>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        for (var cloud in clouds) {
-          cloud.left += cloud.speed;
-          if (cloud.left > MediaQuery.of(context).size.width) {
-            cloud.left = -100;
-          }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Regenera las nubes si el tamaño cambia
+        if (clouds.isEmpty ||
+            constraints.maxWidth != _lastWidth ||
+            constraints.maxHeight != _lastHeight) {
+          _lastWidth = constraints.maxWidth;
+          _lastHeight = constraints.maxHeight;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _generateClouds(constraints.maxWidth, constraints.maxHeight);
+            }
+          });
         }
-        return Container(
-          color: const Color.fromARGB(255, 100, 202, 246),
-          child: Stack(
-            children:
-                clouds.map((cloud) {
-                  return Positioned(
-                    left: cloud.left,
-                    top: cloud.top,
-                    child: Image.asset(
-                      "assets/imagen/cloud.png",
-                      width: 120,
-                      height: 80,
-                    ),
-                  );
-                }).toList(),
-          ),
+
+        return AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            for (var cloud in clouds) {
+              cloud.left += cloud.speed;
+              if (cloud.left > constraints.maxWidth) {
+                cloud.left = -100;
+              }
+            }
+            return SizedBox(
+              width: constraints.maxWidth,
+              height: constraints.maxHeight,
+              child: Stack(
+                children:
+                    clouds.map((cloud) {
+                      return Positioned(
+                        left: cloud.left,
+                        top: cloud.top,
+                        child: Image.asset(
+                          "assets/imagen/cloud.png",
+                          width: 200,
+                          height: 140,
+                        ),
+                      );
+                    }).toList(),
+              ),
+            );
+          },
         );
       },
     );
@@ -245,76 +294,90 @@ class _OptionsScreenState extends State<OptionsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF64CAF6),
       body: Stack(
         children: [
           const CloudBackground(),
           Center(
             child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    "Opciones",
-                    style: TextStyle(
-                      fontSize: 40,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.95),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 10,
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    "Volumen",
-                    style: TextStyle(fontSize: 20, color: Colors.white),
-                  ),
-                  Slider(
-                    value: volume,
-                    min: 0,
-                    max: 100,
-                    divisions: 100,
-                    label: volume.round().toString(),
-                    onChanged: (double value) {
-                      setState(() {
-                        volume = value;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    "Idioma",
-                    style: TextStyle(fontSize: 20, color: Colors.white),
-                  ),
-                  DropdownButton<String>(
-                    value: selectedLanguage,
-                    dropdownColor: Colors.blue[100],
-                    iconEnabledColor: Colors.white,
-                    items:
-                        <String>['Español', 'Inglés']
-                            .map(
-                              (String value) => DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(value),
-                              ),
-                            )
-                            .toList(),
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        selectedLanguage = newValue!;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  MenuButton(
-                    "Atrás",
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    "Versión: 1.2.01",
-                    style: TextStyle(fontSize: 16, color: Colors.white),
-                  ),
-                ],
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "Opciones",
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      "Volumen",
+                      style: TextStyle(fontSize: 20, color: Colors.black87),
+                    ),
+                    Slider(
+                      value: volume,
+                      min: 0,
+                      max: 100,
+                      divisions: 100,
+                      label: volume.round().toString(),
+                      onChanged: (double value) {
+                        setState(() {
+                          volume = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      "Idioma",
+                      style: TextStyle(fontSize: 20, color: Colors.black87),
+                    ),
+                    DropdownButton<String>(
+                      value: selectedLanguage,
+                      dropdownColor: Colors.blue[100],
+                      iconEnabledColor: Colors.black,
+                      items:
+                          <String>['Español', 'Inglés']
+                              .map(
+                                (String value) => DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value),
+                                ),
+                              )
+                              .toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          selectedLanguage = newValue!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    MenuButton(
+                      "Atrás",
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      "Versión: 1.2.01",
+                      style: TextStyle(fontSize: 16, color: Colors.black54),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -331,56 +394,72 @@ class CreditsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF64CAF6),
       body: Stack(
         children: [
           const CloudBackground(),
           Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  "Créditos",
-                  style: TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+            child: SingleChildScrollView(
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.95),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 10,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 15),
-                const Text(
-                  "Desarrolladores:",
-                  style: TextStyle(fontSize: 20, color: Colors.white),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "Créditos",
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    const Text(
+                      "Desarrolladores:",
+                      style: TextStyle(fontSize: 20, color: Colors.black87),
+                    ),
+                    const SizedBox(height: 5),
+                    const Text(
+                      "• Eddy Lara",
+                      style: TextStyle(fontSize: 18, color: Colors.black87),
+                    ),
+                    const Text(
+                      "• David Pelaez",
+                      style: TextStyle(fontSize: 18, color: Colors.black87),
+                    ),
+                    const Text(
+                      "• Jose Pereira",
+                      style: TextStyle(fontSize: 18, color: Colors.black87),
+                    ),
+                    const Text(
+                      "• Juan caicedo",
+                      style: TextStyle(fontSize: 18, color: Colors.black87),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      "Agradecimientos a: copilot",
+                      style: TextStyle(fontSize: 18, color: Colors.black54),
+                    ),
+                    const SizedBox(height: 20),
+                    MenuButton(
+                      "Atrás",
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 5),
-                const Text(
-                  "• Eddy Lara",
-                  style: TextStyle(fontSize: 18, color: Colors.white),
-                ),
-                const Text(
-                  "• David Pelaez",
-                  style: TextStyle(fontSize: 18, color: Colors.white),
-                ),
-                const Text(
-                  "• Jose Pereira",
-                  style: TextStyle(fontSize: 18, color: Colors.white),
-                ),
-                const Text(
-                  "• Juan caicedo",
-                  style: TextStyle(fontSize: 18, color: Colors.white),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  "Agradecimientos a: copilot",
-                  style: TextStyle(fontSize: 18, color: Colors.white),
-                ),
-                const SizedBox(height: 20),
-                MenuButton(
-                  "Atrás",
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                ),
-              ],
+              ),
             ),
           ),
         ],
@@ -393,7 +472,8 @@ class CreditsScreen extends StatelessWidget {
 // Pantalla del laberinto
 // =====================
 class MazeGameScreen extends StatefulWidget {
-  const MazeGameScreen({super.key});
+  final String difficulty;
+  const MazeGameScreen({super.key, this.difficulty = 'medio'});
 
   @override
   State<MazeGameScreen> createState() => _MazeGameScreenState();
@@ -772,7 +852,7 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
       0,
       1,
       1,
-      1,
+              1,
       0,
       0,
       1,
@@ -1054,8 +1134,7 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
   bool seekerActive = false;
   Timer? seekerTimer;
   Timer? countdownTimer;
-  int countdown = 30; // duración inicial
-  bool gameEnded = false;
+  late int countdown;
 
   // Variables para exploración
   Set<String> seekerVisited = {};
@@ -1066,16 +1145,44 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
   // Nueva variable para la zona segura del seeker
   Set<String> seekerSafeZone = {};
 
+  // Variable para el estado del juego
+  bool gameEnded = false;
+
+  // Nueva variable para la lógica del seeker
+  late String seekerLogic; // 'astar', 'bfs', 'dfs'
+
+  @override
+  void initState() {
+    super.initState();
+    setCountdownByDifficulty();
+  }
+
+  void setCountdownByDifficulty() {
+    switch (widget.difficulty) {
+      case 'facil':
+        countdown = 60;
+        break;
+      case 'dificil':
+        countdown = 15;
+        break;
+      default:
+        countdown = 30;
+    }
+  }
+
   // Modifica startSeeker para iniciar el temporizador y la búsqueda autónoma
   void startSeeker() {
     setState(() {
+      setCountdownByDifficulty();
       seekerActive = true;
       gameEnded = false;
-      countdown = 30; // reinicia a 30 segundos
       seekerVisited.clear();
       seekerPath.clear();
       seekerTargetRow = seekerRow;
       seekerTargetCol = seekerCol;
+      // Elegir lógica aleatoria
+      final logics = ['astar', 'bfs', 'dfs'];
+      seekerLogic = logics[Random().nextInt(logics.length)];
     });
     seekerTimer?.cancel();
     countdownTimer?.cancel();
@@ -1115,12 +1222,12 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
           !seekerSafeZone.contains('$row,$col')) {
         return [row, col];
       }
-      for (var dir in [
+      for (var dir in <List<int>>[
         [-1, 0],
         [1, 0],
         [0, -1],
         [0, 1],
-      ]) {
+      ]..shuffle()) {
         int nRow = row + dir[0];
         int nCol = col + dir[1];
         if (nRow >= 0 &&
@@ -1149,12 +1256,12 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
       if (maze[row][col] == 0 && !seekerVisited.contains('$row,$col')) {
         return [row, col];
       }
-      for (var dir in [
+      for (var dir in <List<int>>[
         [-1, 0],
         [1, 0],
         [0, -1],
         [0, 1],
-      ]) {
+      ]..shuffle()) {
         int nRow = row + dir[0];
         int nCol = col + dir[1];
         if (nRow >= 0 &&
@@ -1191,7 +1298,14 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
     // Si el hider está a 4 bloques o menos (distancia Manhattan)
     int dist = (seekerRow - playerRow).abs() + (seekerCol - playerCol).abs();
     if (dist <= 4) {
-      final path = findPathAStar(seekerRow, seekerCol, playerRow, playerCol);
+      List<List<int>> path;
+      if (seekerLogic == 'astar') {
+        path = findPathAStar(seekerRow, seekerCol, playerRow, playerCol);
+      } else if (seekerLogic == 'bfs') {
+        path = findPathBFS(seekerRow, seekerCol, playerRow, playerCol);
+      } else {
+        path = findPathDFS(seekerRow, seekerCol, playerRow, playerCol);
+      }
       if (path.isNotEmpty) {
         final nextStep = path.first;
         setState(() {
@@ -1222,8 +1336,15 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
       return;
     }
 
-    // Calcula el camino (puede pasar por visitadas si es necesario para salir)
-    final path = findPathAStar(seekerRow, seekerCol, next[0], next[1]);
+    // Calcula el camino usando la lógica aleatoria
+    List<List<int>> path;
+    if (seekerLogic == 'astar') {
+      path = findPathAStar(seekerRow, seekerCol, next[0], next[1]);
+    } else if (seekerLogic == 'bfs') {
+      path = findPathBFS(seekerRow, seekerCol, next[0], next[1]);
+    } else {
+      path = findPathDFS(seekerRow, seekerCol, next[0], next[1]);
+    }
     if (path.isNotEmpty) {
       final nextStep = path.first;
       setState(() {
@@ -1243,14 +1364,14 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
       builder:
           (_) => AlertDialog(
             title: const Text('¡Victoria!'),
-            content: const Text('¡El seeker no te encontró en 30 segundos!'),
+            content: const Text('¡El seeker no te encontró en el tiempo!'),
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).pop(); // Volver al menú principal
+                  Navigator.of(context).pop(); // Cierra el diálogo
+                  resetGame(); // Reinicia el juego
                 },
-                child: const Text('Volver al menú'),
+                child: const Text('Cerrar'),
               ),
             ],
           ),
@@ -1269,10 +1390,10 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).pop(); // Volver al menú principal
+                  Navigator.of(context).pop(); // Cierra el diálogo
+                  resetGame(); // Reinicia el juego
                 },
-                child: const Text('Volver al menú'),
+                child: const Text('Cerrar'),
               ),
             ],
           ),
@@ -1308,23 +1429,12 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF64CAF6),
-      body: Center(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // Calcula el tamaño máximo disponible
-            final double maxWidth = constraints.maxWidth;
-            final double maxHeight = constraints.maxHeight;
-
-            // Calcula el tamaño de cada celda para que quepa el laberinto completo
-            final double maxMazeWidth = maxWidth < 900 ? maxWidth : 900;
-            final double maxMazeHeight = maxHeight < 600 ? maxHeight : 600;
-            final double tileSizeWidth = maxMazeWidth / maze[0].length;
-            final double tileSizeHeight = maxMazeHeight / maze.length;
-            final double tileSize =
-                tileSizeWidth < tileSizeHeight ? tileSizeWidth : tileSizeHeight;
-
-            return RawKeyboardListener(
+      backgroundColor: const Color(0xFF64CAF6), // Azul cielo
+      body: Stack(
+        children: [
+          const CloudBackground(),
+          Center(
+            child: RawKeyboardListener(
               focusNode: focusNode,
               autofocus: true,
               onKey: (event) {
@@ -1343,9 +1453,9 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
               },
               child: SingleChildScrollView(
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Botón para volver al menú principal
+                    // Botón Menú principal
                     Align(
                       alignment: Alignment.topLeft,
                       child: Padding(
@@ -1363,20 +1473,57 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
                         ),
                       ),
                     ),
+                    // Selector de dificultad (arriba del mapa)
+                    DropdownButton<String>(
+                      value: widget.difficulty,
+                      items: const [
+                        DropdownMenuItem(value: 'facil', child: Text('Fácil')),
+                        DropdownMenuItem(value: 'medio', child: Text('Medio')),
+                        DropdownMenuItem(
+                          value: 'dificil',
+                          child: Text('Difícil'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder:
+                                  (context) =>
+                                      MazeGameScreen(difficulty: value),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    // Aquí va el Flexible con el mapa...
                     SizedBox(
-                      width: maxWidth < 900 ? maxWidth : 900,
-                      height: maxHeight < 600 ? maxHeight : 600,
+                      width: double.infinity,
+                      height: MediaQuery.of(context).size.height * 0.5,
                       child: Stack(
                         children: [
                           // Dibuja las celdas
                           for (int r = 0; r < maze.length; r++)
                             for (int c = 0; c < maze[r].length; c++)
                               Positioned(
-                                left: c * tileSize,
-                                top: r * tileSize,
+                                left:
+                                    c *
+                                    (MediaQuery.of(context).size.width /
+                                        maze[0].length),
+                                top:
+                                    r *
+                                    (MediaQuery.of(context).size.height *
+                                        0.5 /
+                                        maze.length),
                                 child: Container(
-                                  width: tileSize,
-                                  height: tileSize,
+                                  width:
+                                      MediaQuery.of(context).size.width /
+                                      maze[0].length,
+                                  height:
+                                      MediaQuery.of(context).size.height *
+                                      0.5 /
+                                      maze.length,
                                   decoration: BoxDecoration(
                                     color:
                                         maze[r][c] == 1
@@ -1391,11 +1538,23 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
                               ),
                           // Personaje Hider
                           Positioned(
-                            left: playerCol * tileSize,
-                            top: playerRow * tileSize,
+                            left:
+                                playerCol *
+                                (MediaQuery.of(context).size.width /
+                                    maze[0].length),
+                            top:
+                                playerRow *
+                                (MediaQuery.of(context).size.height *
+                                    0.5 /
+                                    maze.length),
                             child: SizedBox(
-                              width: tileSize,
-                              height: tileSize,
+                              width:
+                                  MediaQuery.of(context).size.width /
+                                  maze[0].length,
+                              height:
+                                  MediaQuery.of(context).size.height *
+                                  0.5 /
+                                  maze.length,
                               child: Image.asset(
                                 'assets/characters/hider.png',
                                 fit: BoxFit.contain,
@@ -1404,11 +1563,23 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
                           ),
                           // Personaje Seeker
                           Positioned(
-                            left: seekerCol * tileSize,
-                            top: seekerRow * tileSize,
+                            left:
+                                seekerCol *
+                                (MediaQuery.of(context).size.width /
+                                    maze[0].length),
+                            top:
+                                seekerRow *
+                                (MediaQuery.of(context).size.height *
+                                    0.5 /
+                                    maze.length),
                             child: SizedBox(
-                              width: tileSize,
-                              height: tileSize,
+                              width:
+                                  MediaQuery.of(context).size.width /
+                                  maze[0].length,
+                              height:
+                                  MediaQuery.of(context).size.height *
+                                  0.5 /
+                                  maze.length,
                               child: Image.asset(
                                 'assets/characters/seeker.png',
                                 fit: BoxFit.contain,
@@ -1457,14 +1628,85 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    Text(
+                      'Dificultad: ${widget.difficulty == 'facil'
+                          ? 'Fácil'
+                          : widget.difficulty == 'medio'
+                          ? 'Medio'
+                          : 'Difícil'}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 8.0,
+                        horizontal: 16.0,
+                      ),
+                      child: Card(
+                        color: Colors.white.withOpacity(0.9),
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Text(
+                                "Instrucciones",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                  color: Colors.blue,
+                                ),
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                "• Muévete con las flechas o los botones.\n"
+                                "• El seeker te detecta si estás a 4 bloques o menos.\n"
+                                "• ¡Evita ser atrapado antes de que acabe el tiempo!\n\n"
+                                "Dificultad:\n"
+                                "• Fácil: 60 segundos para encontrarte el seeker.\n"
+                                "• Medio: 30 segundos para encontrarte el seeker.\n"
+                                "• Difícil: 15 segundos para encontrarte el seeker.",
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
-            );
-          },
-        ),
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  void resetGame() {
+    setState(() {
+      playerRow = 1;
+      playerCol = 1;
+      seekerRow = 18;
+      seekerCol = 1;
+      seekerActive = false;
+      gameEnded = false;
+      seekerVisited.clear();
+      seekerPath.clear();
+      seekerSafeZone.clear();
+      setCountdownByDifficulty();
+    });
   }
 
   List<List<int>> findPathAStar(
@@ -1571,6 +1813,7 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
       final col = current[1];
 
       if (row == goalRow && col == goalCol) {
+        // Reconstruir el camino
         final path = <List<int>>[];
         var curr = current;
         while (cameFrom.containsKey(key(curr[0], curr[1]))) {
@@ -1633,12 +1876,12 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
           !seekerSafeZone.contains('$row,$col')) {
         return [row, col];
       }
-      for (var dir in [
+      for (var dir in <List<int>>[
         [-1, 0],
         [1, 0],
         [0, -1],
         [0, 1],
-      ]) {
+      ]..shuffle()) {
         int nRow = row + dir[0];
         int nCol = col + dir[1];
         if (nRow >= 0 &&
@@ -1671,5 +1914,97 @@ class _MazeGameScreenState extends State<MazeGameScreen> {
         }
       }
     }
+  }
+
+  List<List<int>> findPathBFS(
+    int startRow,
+    int startCol,
+    int goalRow,
+    int goalCol,
+  ) {
+    Queue<List<int>> queue = Queue();
+    Map<String, List<int>> cameFrom = {};
+    queue.add([startRow, startCol]);
+    Set<String> visited = {'$startRow,$startCol'};
+
+    while (queue.isNotEmpty) {
+      var current = queue.removeFirst();
+      int row = current[0], col = current[1];
+      if (row == goalRow && col == goalCol) {
+        // Reconstruir el camino
+        final path = <List<int>>[];
+        var curr = current;
+        while (cameFrom.containsKey('${curr[0]},${curr[1]}')) {
+          path.insert(0, curr);
+          curr = cameFrom['${curr[0]},${curr[1]}']!;
+        }
+        return path;
+      }
+      for (var dir in ([
+        [-1, 0],
+        [1, 0],
+        [0, -1],
+        [0, 1],
+      ]..shuffle())) {
+        int nRow = row + dir[0], nCol = col + dir[1];
+        if (nRow < 0 ||
+            nRow >= maze.length ||
+            nCol < 0 ||
+            nCol >= maze[0].length)
+          continue;
+        if (maze[nRow][nCol] == 1) continue;
+        if (visited.contains('$nRow,$nCol')) continue;
+        queue.add([nRow, nCol]);
+        visited.add('$nRow,$nCol');
+        cameFrom['$nRow,$nCol'] = [row, col];
+      }
+    }
+    return [];
+  }
+
+  List<List<int>> findPathDFS(
+    int startRow,
+    int startCol,
+    int goalRow,
+    int goalCol,
+  ) {
+    List<List<int>> stack = [];
+    Map<String, List<int>> cameFrom = {};
+    stack.add([startRow, startCol]);
+    Set<String> visited = {'$startRow,$startCol'};
+
+    while (stack.isNotEmpty) {
+      var current = stack.removeLast();
+      int row = current[0], col = current[1];
+      if (row == goalRow && col == goalCol) {
+        // Reconstruir el camino
+        final path = <List<int>>[];
+        var curr = current;
+        while (cameFrom.containsKey('${curr[0]},${curr[1]}')) {
+          path.insert(0, curr);
+          curr = cameFrom['${curr[0]},${curr[1]}']!;
+        }
+        return path;
+      }
+      for (var dir in ([
+        [-1, 0],
+        [1, 0],
+        [0, -1],
+        [0, 1],
+      ]..shuffle())) {
+        int nRow = row + dir[0], nCol = col + dir[1];
+        if (nRow < 0 ||
+            nRow >= maze.length ||
+            nCol < 0 ||
+            nCol >= maze[0].length)
+          continue;
+        if (maze[nRow][nCol] == 1) continue;
+        if (visited.contains('$nRow,$nCol')) continue;
+        stack.add([nRow, nCol]);
+        visited.add('$nRow,$nCol');
+        cameFrom['$nRow,$nCol'] = [row, col];
+      }
+    }
+    return [];
   }
 }
