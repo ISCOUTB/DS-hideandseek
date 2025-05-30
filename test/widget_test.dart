@@ -7,24 +7,37 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:prueba/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('MainMenu se muestra y tiene botones principales', (WidgetTester tester) async {
     await tester.pumpWidget(const MainApp());
+    expect(find.text('Hide and Seek'), findsOneWidget);
+    expect(find.text('Iniciar'), findsOneWidget);
+    expect(find.text('Opciones'), findsOneWidget);
+    expect(find.text('Créditos'), findsOneWidget);
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  testWidgets('Navega a OptionsScreen y muestra controles', (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: OptionsScreen()));
+    expect(find.text('Opciones'), findsOneWidget);
+    expect(find.text('Volumen'), findsOneWidget);
+    expect(find.text('Idioma'), findsOneWidget);
+    expect(find.text('Atrás'), findsOneWidget);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  testWidgets('Navega a CreditsScreen y muestra créditos', (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: CreditsScreen()));
+    expect(find.text('Créditos'), findsOneWidget);
+    expect(find.text('Eddy Lara'), findsOneWidget);
+    expect(find.text('Atrás'), findsOneWidget);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('MazeGameScreen muestra el laberinto y controles', (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: MazeGameScreen()));
+    expect(find.textContaining('Tiempo restante'), findsOneWidget);
+    expect(find.textContaining('Dificultad'), findsOneWidget);
+    expect(find.text('¡Estoy listo!'), findsOneWidget);
+    expect(find.text('Menú principal'), findsOneWidget);
   });
 }
