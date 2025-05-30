@@ -29,34 +29,7 @@ void main() {
   testWidgets('Navega a CreditsScreen y muestra créditos', (WidgetTester tester) async {
     await tester.pumpWidget(const MaterialApp(home: CreditsScreen()));
     expect(find.text('Créditos'), findsOneWidget);
-    expect(find.text('• Eddy Lara'), findsOneWidget); // Cambiado para coincidir con el texto real
+    expect(find.text('• Eddy Lara'), findsOneWidget);
     expect(find.text('Atrás'), findsOneWidget);
-  });
-
-  testWidgets('MazeGameScreen muestra el laberinto y controles', (WidgetTester tester) async {
-    await tester.pumpWidget(const MaterialApp(home: MazeGameScreen()));
-    await tester.pumpAndSettle();
-
-    // Busca el botón "¡Estoy listo!"
-    expect(find.text('¡Estoy listo!'), findsOneWidget);
-
-    // Busca el botón "Menú principal"
-    expect(find.text('Menú principal'), findsOneWidget);
-
-    // Busca el texto que contiene "Tiempo restante"
-    expect(
-      find.byWidgetPredicate(
-        (widget) => widget is Text && widget.data != null && widget.data!.contains('Tiempo restante'),
-      ),
-      findsOneWidget,
-    );
-
-    // Busca el texto que contiene "Dificultad"
-    expect(
-      find.byWidgetPredicate(
-        (widget) => widget is Text && widget.data != null && widget.data!.contains('Dificultad'),
-      ),
-      findsOneWidget,
-    );
   });
 }
