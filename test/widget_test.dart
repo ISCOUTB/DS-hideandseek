@@ -29,7 +29,7 @@ void main() {
   testWidgets('Navega a CreditsScreen y muestra créditos', (WidgetTester tester) async {
     await tester.pumpWidget(const MaterialApp(home: CreditsScreen()));
     expect(find.text('Créditos'), findsOneWidget);
-    expect(find.text('Eddy Lara'), findsOneWidget);
+    expect(find.text('• Eddy Lara'), findsOneWidget); // Cambiado para coincidir con el texto real
     expect(find.text('Atrás'), findsOneWidget);
   });
 
