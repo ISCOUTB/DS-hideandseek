@@ -10,15 +10,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:prueba/main.dart';
 
 void main() {
-  testWidgets('MainMenu se muestra y tiene botones principales', (WidgetTester tester) async {
+  testWidgets('MainApp se puede crear', (tester) async {
     await tester.pumpWidget(const MainApp());
+    expect(find.byType(MainApp), findsOneWidget);
+  });
+
+  testWidgets('MainMenu muestra los botones principales', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: MainMenu()));
     expect(find.text('Hide and Seek'), findsOneWidget);
     expect(find.text('Iniciar'), findsOneWidget);
     expect(find.text('Opciones'), findsOneWidget);
     expect(find.text('Créditos'), findsOneWidget);
   });
 
-  testWidgets('Navega a OptionsScreen y muestra controles', (WidgetTester tester) async {
+  testWidgets('OptionsScreen muestra controles', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: OptionsScreen()));
     expect(find.text('Opciones'), findsOneWidget);
     expect(find.text('Volumen'), findsOneWidget);
@@ -26,10 +31,33 @@ void main() {
     expect(find.text('Atrás'), findsOneWidget);
   });
 
-  testWidgets('Navega a CreditsScreen y muestra créditos', (WidgetTester tester) async {
+  testWidgets('CreditsScreen muestra créditos', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: CreditsScreen()));
     expect(find.text('Créditos'), findsOneWidget);
     expect(find.text('• Eddy Lara'), findsOneWidget);
     expect(find.text('Atrás'), findsOneWidget);
+  });
+
+  testWidgets('MazeGameScreen muestra controles básicos', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: MazeGameScreen()));
+    expect(find.text('¡Estoy listo!'), findsOneWidget);
+    expect(find.text('Menú principal'), findsOneWidget);
+    expect(find.textContaining('Tiempo restante'), findsOneWidget);
+    expect(find.textContaining('Dificultad'), findsOneWidget);
+  });
+
+  testWidgets('MenuButton se puede presionar', (tester) async {
+    bool pressed = false;
+    await tester.pumpWidget(MaterialApp(
+      home: MenuButton('Test', onPressed: () => pressed = true),
+    ));
+    expect(find.text('Test'), findsOneWidget);
+    await tester.tap(find.text('Test'));
+    expect(pressed, true);
+  });
+
+  testWidgets('CloudBackground se puede renderizar', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: CloudBackground())));
+    expect(find.byType(CloudBackground), findsOneWidget);
   });
 }
