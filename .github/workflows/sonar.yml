@@ -1,0 +1,131 @@
+name: Build and SonarQube Analysis
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  sonarqube:
+    name: SonarQube Analysis
+    runs-on: windows-latest
+    # Las variables de entorno SONAR_TOKEN y SONAR_HOST_URL se pueden definir aquí
+    # o directamente en el paso de SonarQube Scan.
+    # Ponerlas en el 'env' del job las hace disponibles para todos los pasos si fuera necesario.
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: 'https://sonarcloud.io' # Asegúrate que esta es la URL correcta para SonarCloud
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Necesario para un análisis preciso de SonarQube
+
+      # Cache para Flutter en Windows
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{ runner.tool_cache }}/flutter
+            ${{ env.LOCALAPPDATA }}\Pub\Cache
+          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle' # Cache para Gradle si tu proyecto Flutter lo usa indirectamente
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.2' # Considera usar 'stable' o la última versión si es posible
+          channel: 'stable' # Asegúrate de que el canal coincide con la versión
+
+      - name: Verify Flutter installation
+        run: flutter doctor
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Opcional: Si no analizas la salida web, puedes omitir este paso
+      - name: Build WEB (Optional)
+        run: flutter build web
+
+      # Ejecutar tests con coverage
+      - name: Run tests with coverage
+        run: |
+          flutter test --coverage
+          Write-Host "Coverage generated, checking file..."
+          if (Test-Path "coverage\lcov.info") {
+            Write-Host "LCOV file found, size:"
+            Get-Item "coverage\lcov.info" | Select-Object Name, Length
+            Write-Host "Sample content (first 5 lines):"
+            Get-Content "coverage\lcov.info" | Select-Object -First 5
+          } else {
+            Write-Host "ERROR: No coverage file generated!"
+            exit 1
+          }
+
+      # FIX CRÍTICO: Convertir paths absolutos en lcov.info para SonarCloud en Windows
+      - name: Fix LCOV file paths for SonarCloud
+        run: |
+          $lcovPath = "coverage\lcov.info"
+          if (Test-Path $lcovPath) {
+            $content = Get-Content $lcovPath -Raw
+            # Reemplaza las rutas absolutas de Windows (ej: C:\a\repo\lib\file.dart)
+            # por rutas relativas desde la raíz del proyecto (ej: lib/file.dart)
+            # Esta expresión regular asume que GITHUB_WORKSPACE es la raíz del checkout.
+            $workspacePath = ($env:GITHUB_WORKSPACE -replace '\\', '\\\\') + '\\'
+            $fixedContent = $content -replace ('(?m)^SF:' + $workspacePath + '(?<relativePath>.*)'), ('SF:${relativePath}')
+            $fixedContent = $fixedContent -replace '\\', '/'
+            
+            Set-Content -Path $lcovPath -Value $fixedContent
+            Write-Host "LCOV paths potentially fixed. New content sample (first 10 lines):"
+            Get-Content $lcovPath | Select-Object -First 10
+          } else {
+            Write-Host "LCOV file not found at $lcovPath for fixing."
+          }
+        shell: pwsh
+
+      # Verificar formato final del LCOV
+      - name: Verify LCOV format after fix
+        run: |
+          Write-Host "Final LCOV content check:"
+          $lcovPath = "coverage\lcov.info"
+          if (Test-Path $lcovPath) {
+            $content = Get-Content $lcovPath
+            $sfLines = $content | Where-Object { $_ -match '^SF:' } | Select-Object -First 5
+            Write-Host "SF lines found:"
+            $sfLines | ForEach-Object { Write-Host $_ }
+            
+            $daLines = $content | Where-Object { $_ -match '^DA:' } | Select-Object -First 5  
+            Write-Host "DA lines found:"
+            $daLines | ForEach-Object { Write-Host $_ }
+          } else {
+            Write-Host "LCOV file not found for final verification."
+          }
+        shell: pwsh
+
+      # No es necesario el 'Install SonarQube Build Wrapper' para Dart/Flutter
+      # - name: Install SonarQube Build Wrapper
+      #   uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v5
+
+      - name: Run SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        # Las variables de entorno SONAR_TOKEN y SONAR_HOST_URL ya están definidas a nivel de job
+        # env:
+        #   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        #   SONAR_HOST_URL: 'https://sonarcloud.io'
+        with:
+          # Las propiedades principales como sonar.sources, sonar.tests, sonar.dart.lcov.reportPaths
+          # deben estar en tu archivo sonar-project.properties
+          args: >
+            -Dsonar.verbose=true
+            -Dsonar.qualitygate.wait=false
